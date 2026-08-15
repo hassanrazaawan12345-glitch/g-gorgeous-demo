@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Favourites — G.Gorgeous</title>
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="wrap">
+  <div class="page-head">
+    <p class="eyebrow">Saved for later</p>
+    <h1>My Favourites</h1>
+    <div class="rule-ornament"><span>◆</span></div>
+    <p id="fav-sub" class="muted"></p>
+  </div>
+
+  <div class="product-grid cols-4" id="fav-grid"></div>
+  <div class="center mt-32" id="fav-actions"></div>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  mountChrome('fav');
+  render();
+  document.addEventListener('gg:favs', render);
+});
+
+function render() {
+  const ids = getFavs();
+  const list = ids.map(productById).filter(Boolean);
+  const grid = document.getElementById('fav-grid');
+  const sub = document.getElementById('fav-sub');
+  const actions = document.getElementById('fav-actions');
+
+  if (!list.length) {
+    grid.className = '';
+    grid.innerHTML = `<div class="empty-state">
+      <h3>No favourites yet</h3>
+      <p>Tap the heart on any product to keep it here for later.</p>
+      <a class="btn" href="index.html#shop">Browse the collection</a></div>`;
+    sub.textContent = '';
+    actions.innerHTML = '';
+    return;
+  }
+
+  grid.className = 'product-grid cols-4';
+  grid.innerHTML = list.map(productCard).join('');
+  sub.textContent = `${list.length} piece${list.length > 1 ? 's' : ''} saved`;
+  actions.innerHTML = `<button class="btn btn-ghost btn-sm" id="clear-favs">Clear all favourites</button>`;
+  document.getElementById('clear-favs').onclick = () =>
+    confirmBox('Clear favourites?', 'This removes every saved piece.', () => {
+      getFavs().slice().forEach(toggleFav);
+      toast('Favourites cleared');
+      render();
+    }, 'Clear all');
+}
+</script>
+</body>
+</html>

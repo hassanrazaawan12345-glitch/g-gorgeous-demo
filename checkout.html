@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout — G.Gorgeous</title>
+<link rel="icon" href="assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="wrap" id="checkout-main">
+  <div class="page-head">
+    <p class="eyebrow">Secure checkout</p>
+    <h1>Checkout</h1>
+    <div class="rule-ornament"><span>◆</span></div>
+  </div>
+
+  <div class="steps">
+    <span class="step done"><i>✓</i> Cart</span><span class="step-sep"></span>
+    <span class="step on"><i>2</i> Details &amp; payment</span><span class="step-sep"></span>
+    <span class="step"><i>3</i> Confirmation</span>
+  </div>
+
+  <div class="cart-layout" id="checkout-body">
+    <form id="checkout-form" novalidate>
+
+      <div class="checkout-block">
+        <h3><i>1</i> Contact details</h3>
+        <div class="grid-2">
+          <div class="field"><label>Full name *</label>
+            <input type="text" id="c-name" placeholder="Ahmed Khan" autocomplete="name">
+            <p class="err-msg">Please enter your full name</p></div>
+          <div class="field"><label>Phone number *</label>
+            <input type="tel" id="c-phone" placeholder="03XX XXXXXXX" autocomplete="tel">
+            <p class="err-msg">Enter a valid Pakistani mobile number</p></div>
+        </div>
+        <div class="field"><label>Email address *</label>
+          <input type="email" id="c-email" placeholder="you@example.com" autocomplete="email">
+          <p class="err-msg">Enter a valid email address</p></div>
+      </div>
+
+      <div class="checkout-block">
+        <h3><i>2</i> Delivery address</h3>
+        <div class="field"><label>Street address *</label>
+          <input type="text" id="c-address" placeholder="House / flat, street, area" autocomplete="street-address">
+          <p class="err-msg">Please enter your delivery address</p></div>
+        <div class="grid-3">
+          <div class="field"><label>City *</label>
+            <input type="text" id="c-city" placeholder="Rawalpindi" autocomplete="address-level2">
+            <p class="err-msg">Required</p></div>
+          <div class="field"><label>Province *</label>
+            <select id="c-province">
+              <option value="">Select…</option>
+              <option>Punjab</option><option>Sindh</option><option>Khyber Pakhtunkhwa</option>
+              <option>Balochistan</option><option>Islamabad Capital Territory</option>
+              <option>Gilgit-Baltistan</option><option>Azad Kashmir</option>
+            </select>
+            <p class="err-msg">Required</p></div>
+          <div class="field"><label>Postal code</label>
+            <input type="text" id="c-postal" placeholder="46000" autocomplete="postal-code"></div>
+        </div>
+        <div class="field"><label>Order notes (optional)</label>
+          <textarea id="c-notes" placeholder="Measurements, alteration requests, delivery instructions…" style="min-height:84px"></textarea></div>
+      </div>
+
+      <div class="checkout-block">
+        <h3><i>3</i> Payment method</h3>
+        <div class="pay-methods" id="pay-methods">
+          <label class="pay-option on">
+            <input type="radio" name="pay" value="card" checked>
+            <span><b>Credit / Debit card</b><small>Visa, Mastercard — pay securely online</small></span>
+            <span class="pay-logos">
+              <svg width="34" height="22" viewBox="0 0 34 22"><rect width="34" height="22" rx="3" fill="#f4f1ea"/><text x="17" y="15" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" font-weight="700" fill="#1a1f71">VISA</text></svg>
+              <svg width="34" height="22" viewBox="0 0 34 22"><rect width="34" height="22" rx="3" fill="#f4f1ea"/><circle cx="14" cy="11" r="6" fill="#eb001b" opacity=".85"/><circle cx="20" cy="11" r="6" fill="#f79e1b" opacity=".85"/></svg>
+            </span>
+          </label>
+          <label class="pay-option">
+            <input type="radio" name="pay" value="wallet">
+            <span><b>Easypaisa / JazzCash</b><small>Pay from your mobile wallet</small></span>
+          </label>
+          <label class="pay-option">
+            <input type="radio" name="pay" value="bank">
+            <span><b>Bank transfer</b><small>Transfer and send us the receipt on WhatsApp</small></span>
+          </label>
+          <label class="pay-option">
+            <input type="radio" name="pay" value="cod">
+            <span><b>Cash on delivery</b><small>Pay the courier when your parcel arrives</small></span>
+          </label>
+        </div>
+
+        <div class="card-form" id="card-form">
+          <div class="field"><label>Card number *</label>
+            <input type="text" id="c-card" placeholder="4242 4242 4242 4242" inputmode="numeric" maxlength="23" autocomplete="cc-number">
+            <p class="err-msg">Enter a valid card number</p></div>
+          <div class="field"><label>Name on card *</label>
+            <input type="text" id="c-cardname" placeholder="AHMED KHAN" autocomplete="cc-name">
+            <p class="err-msg">Required</p></div>
+          <div class="grid-2">
+            <div class="field"><label>Expiry (MM/YY) *</label>
+              <input type="text" id="c-exp" placeholder="09/29" maxlength="5" inputmode="numeric" autocomplete="cc-exp">
+              <p class="err-msg">Enter a valid future expiry date</p></div>
+            <div class="field"><label>CVV *</label>
+              <input type="password" id="c-cvv" placeholder="123" maxlength="4" inputmode="numeric" autocomplete="cc-csc">
+              <p class="err-msg">3 or 4 digits</p></div>
+          </div>
+          <p class="hint">Demo checkout — no card is charged and nothing is sent anywhere. Use any test number, e.g. 4242 4242 4242 4242.</p>
+        </div>
+
+        <div class="card-form hide" id="wallet-form">
+          <div class="field"><label>Wallet account number *</label>
+            <input type="tel" id="c-wallet" placeholder="03XX XXXXXXX">
+            <p class="err-msg">Enter the mobile number registered with your wallet</p></div>
+          <p class="hint">You will receive a payment prompt on your phone. Demo only — nothing is charged.</p>
+        </div>
+
+        <div class="card-form hide" id="bank-form">
+          <table class="spec-table">
+            <tr><td>Bank</td><td>Meezan Bank</td></tr>
+            <tr><td>Title</td><td>G.Gorgeous Gents Wear</td></tr>
+            <tr><td>Account</td><td>0123 4567 8901 2345</td></tr>
+            <tr><td>IBAN</td><td>PK00 MEZN 0001 2345 6789 0123</td></tr>
+          </table>
+          <p class="hint">Transfer the total and send the receipt to 0342 5714108 on WhatsApp. We dispatch once it clears.</p>
+        </div>
+
+        <div class="card-form hide" id="cod-form">
+          <p class="hint" style="margin:0">Please keep the exact amount ready. Our courier will collect payment at your doorstep. A confirmation call is made before dispatch.</p>
+        </div>
+      </div>
+
+      <label class="check" style="margin-bottom:18px">
+        <input type="checkbox" id="c-terms">
+        <span>I agree to the exchange policy and confirm my order details are correct.</span>
+      </label>
+      <p class="err-msg" id="terms-err" style="margin-top:-10px;margin-bottom:14px">Please accept before placing the order</p>
+
+      <button type="submit" class="btn btn-gold btn-block" id="place-order">Place order</button>
+    </form>
+
+    <aside class="summary" id="checkout-summary"></aside>
+  </div>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/checkout.js"></script>
+</body>
+</html>
