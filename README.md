@@ -31,6 +31,7 @@ Then open <http://localhost:5173/>. Press `Ctrl+C` in the terminal to stop.
 | `cart.html` | Full cart with quantities, promo codes and totals |
 | `checkout.html` | Contact + address + payment, validation, order confirmation |
 | `favourites.html` | Everything the customer has hearted |
+| `account.html` | Sign in, create account, password recovery, and the customer dashboard |
 | `admin.html` | Owner's panel — **PIN: `gorgeous2255`** |
 
 ---
@@ -48,9 +49,48 @@ Then open <http://localhost:5173/>. Press `Ctrl+C` in the terminal to stop.
 - **Apply promo codes** — `GG10` (10%), `GORGEOUS` (15%), `SHADI25` (25%)
 - **Checkout** with card, Easypaisa/JazzCash, bank transfer or cash on delivery
 - **Write a review** with a star rating — it appears instantly on the product
+- **Create an account**, sign in with either email or mobile number, and stay signed in
+- **Recover a forgotten password** by email or SMS, with a 6-digit code
+- Keep an **address book**, see **order history**, and edit profile and password
 - Message the shop on **WhatsApp** about any piece
 
+Checkout works for guests too — an account is never required.
+
 Card payment is validated properly (Luhn check, expiry, CVV) but **nothing is charged and no data leaves the browser** — it is a demo.
+
+---
+
+## Customer accounts
+
+Everything works end to end: sign up, sign in with email *or* mobile, stay-signed-in sessions with expiry, lockout after 5 failed attempts, password strength checks, a three-step recovery flow (choose email or SMS → enter code → set new password), an address book that feeds checkout, and per-customer order history.
+
+### ⚠ It is demo authentication
+
+Accounts live in the browser's `localStorage`, the same as everything else here. That is fine for a client preview but is **not real security**:
+
+- anyone can read the stored account data with browser dev tools
+- passwords are hashed (SHA-256 + per-user salt) but client-side hashing protects nobody from a determined attacker
+- **recovery codes are shown on screen instead of being emailed or texted** — a static site has no way to send either
+- accounts exist only in the browser that created them; signing up on a phone does not sign you in on a laptop
+
+### Making it real
+
+Every screen talks only to the `Auth.*` methods in **`assets/js/auth.js`**. Nothing else in the site touches account storage, so switching to a real provider means rewriting that one file.
+
+The quickest route is **Firebase Authentication**, which works from a static site with no server of your own and genuinely sends recovery emails and SMS codes:
+
+| Auth method here | Firebase equivalent |
+|---|---|
+| `Auth.signUp` | `createUserWithEmailAndPassword` |
+| `Auth.signIn` | `signInWithEmailAndPassword` / `signInWithPhoneNumber` |
+| `Auth.signOut` | `signOut` |
+| `Auth.requestReset` | `sendPasswordResetEmail` / phone OTP |
+| `Auth.changePassword` | `updatePassword` |
+| `Auth.currentUser` | `onAuthStateChanged` |
+
+Orders, addresses and profiles would move to Firestore or Supabase at the same time, so a customer sees the same account on every device. Note that SMS delivery is billed per message; email is free.
+
+Set `AUTH_BACKEND` at the top of `auth.js` when you swap it, so the on-screen "demo accounts" notices disappear automatically.
 
 ---
 
@@ -106,6 +146,9 @@ Everything is in the browser's `localStorage` for this site:
 | `gg.reviews` | Customer reviews |
 | `gg.orders` | Placed orders |
 | `gg.cart` / `gg.favs` | The current visitor's cart and favourites |
+| `gg.users` | Customer accounts, addresses and password hashes |
+| `gg.session` | Who is signed in, and when the session expires |
+| `gg.resets` | Outstanding password-recovery codes |
 
 Clearing browser data or using a different browser resets it. **Admin → Settings → Export** saves a JSON backup you can import later.
 
@@ -126,6 +169,7 @@ Colours and typography are CSS variables at the top of **`assets/css/style.css`*
 This demo is deliberately front-end only. For a real store you would add:
 
 - A backend + database (products, orders, stock, users)
+- **Real authentication** — Firebase Auth or Supabase Auth, so accounts work across devices and recovery emails and SMS actually send (see *Customer accounts* above)
 - A real payment gateway (Stripe, or Easypaisa/JazzCash merchant APIs for Pakistan)
 - Admin authentication that isn't a client-side PIN
 - Order emails / SMS, and a courier integration for tracking

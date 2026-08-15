@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return showEmpty();
   }
 
+  renderAuthBanner();
   renderSummary();
   restoreDetails();
   bindPayment();
@@ -26,6 +27,46 @@ function showEmpty() {
     <p>Add something to the cart before checking out.</p>
     <a class="btn" href="index.html#shop">Browse the collection</a></div>`;
   $('.steps').style.display = 'none';
+}
+
+/* ---------- signed-in banner ---------- */
+
+function renderAuthBanner() {
+  const user = Auth.currentUser();
+  const el = document.createElement('div');
+  el.className = 'signin-banner';
+
+  if (user) {
+    const addrs = Auth.addresses();
+    el.innerHTML = `
+      <span>Signed in as <b>${esc(user.name)}</b> — your details are filled in below.</span>
+      ${addrs.length > 1 ? `<select id="addr-pick" style="width:auto;min-width:220px">
+          ${addrs.map(a => `<option value="${a.id}" ${a.isDefault ? 'selected' : ''}>${esc(a.label)} — ${esc(a.city)}</option>`).join('')}
+        </select>` : `<a class="btn btn-sm btn-ghost" href="account.html">My account</a>`}`;
+  } else {
+    el.innerHTML = `
+      <span>Have an account? Sign in and we will fill this in for you.</span>
+      <span class="flex gap-8">
+        <a class="btn btn-sm btn-ghost" href="account.html?next=checkout.html">Sign in</a>
+        <a class="btn btn-sm" href="account.html?view=signup&next=checkout.html">Create account</a>
+      </span>`;
+  }
+
+  const body = $('#checkout-body');
+  body.parentNode.insertBefore(el, body);
+
+  const pick = $('#addr-pick');
+  if (pick) pick.onchange = () => fillAddress(Auth.addresses().find(a => a.id === pick.value));
+}
+
+function fillAddress(a) {
+  if (!a) return;
+  $('#c-address').value = a.address || '';
+  $('#c-city').value = a.city || '';
+  $('#c-province').value = a.province || '';
+  $('#c-postal').value = a.postal || '';
+  if (a.phone) $('#c-phone').value = prettyPhone(a.phone);
+  $$('.field').forEach(f => f.classList.remove('invalid'));
 }
 
 /* ---------- summary ---------- */
@@ -163,6 +204,15 @@ function validate() {
 function saveDetails(c) { localStorage.setItem('gg.customer', JSON.stringify(c)); }
 
 function restoreDetails() {
+  // A signed-in customer's account details win over the guest cache
+  const user = Auth.currentUser();
+  if (user) {
+    $('#c-name').value = user.name || '';
+    $('#c-email').value = user.email || '';
+    $('#c-phone').value = prettyPhone(user.phone || '');
+    fillAddress(Auth.defaultAddress());
+    return;
+  }
   try {
     const c = JSON.parse(localStorage.getItem('gg.customer') || 'null');
     if (!c) return;
@@ -171,6 +221,22 @@ function restoreDetails() {
     $('#c-city').value = c.city || ''; $('#c-province').value = c.province || '';
     $('#c-postal').value = c.postal || '';
   } catch (e) {}
+}
+
+/* keep the signed-in customer's address book up to date */
+function rememberAddress(customer) {
+  if (!Auth.isSignedIn()) return;
+  const existing = Auth.addresses();
+  const same = existing.some(a =>
+    (a.address || '').trim().toLowerCase() === customer.address.toLowerCase() &&
+    (a.city || '').trim().toLowerCase() === customer.city.toLowerCase());
+  if (same) return;
+  Auth.saveAddress({
+    label: existing.length ? 'Address ' + (existing.length + 1) : 'Home',
+    address: customer.address, city: customer.city, province: customer.province,
+    postal: customer.postal, phone: customer.phone,
+    isDefault: !existing.length
+  });
 }
 
 function submit(e) {
@@ -187,6 +253,7 @@ function submit(e) {
     province: $('#c-province').value, postal: $('#c-postal').value.trim(), notes: $('#c-notes').value.trim()
   };
   saveDetails(customer);
+  rememberAddress(customer);
 
   const m = payMethod();
   const labels = { card: 'Credit / Debit card', wallet: 'Easypaisa / JazzCash', bank: 'Bank transfer', cod: 'Cash on delivery' };
@@ -244,6 +311,9 @@ function showSuccess(order) {
       </div>
 
       <div class="flex gap-12 mt-32" style="justify-content:center;flex-wrap:wrap">
+        ${Auth.isSignedIn()
+          ? `<a class="btn btn-gold" href="account.html">Track it in my account</a>`
+          : `<a class="btn btn-gold" href="account.html?view=signup">Create an account to track it</a>`}
         <a class="btn" href="index.html#shop">Continue shopping</a>
         <a class="btn btn-ghost" href="https://wa.me/${SITE.phoneRaw.replace('+', '')}?text=${encodeURIComponent('Hi, I just placed order #' + order.id)}" target="_blank" rel="noopener">Message us on WhatsApp</a>
         <button class="btn btn-ghost" onclick="window.print()">Print receipt</button>

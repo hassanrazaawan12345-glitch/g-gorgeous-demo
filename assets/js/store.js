@@ -210,10 +210,12 @@ const getOrders = () => read(DB.ORDERS, []);
 function placeOrder(customer, payment) {
   const t = cartTotals();
   if (!t.lines.length) return null;
+  const signedIn = (typeof Auth !== 'undefined') ? Auth.currentUser() : null;
   const order = {
     id: 'GG' + Date.now().toString().slice(-8),
     date: new Date().toISOString(),
     status: 'Pending',
+    userId: signedIn ? signedIn.id : null,
     customer, payment,
     items: t.lines.map(l => ({
       productId: l.productId, name: l.product.name, sku: l.product.sku,

@@ -113,7 +113,7 @@ function renderHeader(active) {
           <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Menu">${ICON.menu}</button>
           <a class="icon-btn" href="favourites.html" aria-label="Favourites">${ICON.heart}<span class="count" id="fav-count"></span></a>
           <button class="icon-btn" id="cart-btn" aria-label="Cart">${ICON.bag}<span class="count" id="cart-count"></span></button>
-          <a class="icon-btn" href="admin.html" aria-label="Admin panel" title="Admin panel">${ICON.user}</a>
+          <span id="acct-slot"></span>
         </div>
       </div>
       <nav class="nav" id="main-nav">
@@ -131,8 +131,47 @@ function renderHeader(active) {
   });
   $('#menu-toggle').addEventListener('click', () => $('#main-nav').classList.toggle('open'));
   $('#cart-btn').addEventListener('click', openCartDrawer);
+  renderAccountSlot();
   refreshCounts();
 }
+
+/* ---------- header account control ---------- */
+
+function renderAccountSlot() {
+  const slot = $('#acct-slot');
+  if (!slot || typeof Auth === 'undefined') return;
+  const user = Auth.currentUser();
+
+  if (!user) {
+    slot.innerHTML = `<a class="icon-btn" href="account.html" aria-label="Sign in" title="Sign in or create an account">${ICON.user}</a>`;
+    return;
+  }
+
+  slot.innerHTML = `
+    <span class="acct-menu" id="acct-menu">
+      <button class="icon-btn" id="acct-btn" aria-label="Your account" title="${esc(user.name)}">
+        ${ICON.user}<span class="dot"></span>
+      </button>
+      <span class="acct-menu-pop">
+        <span class="who"><b>${esc(user.name)}</b><span>${esc(user.email)}</span></span>
+        <a href="account.html">${ICON.grid} My account</a>
+        <a href="account.html" data-panel="orders">${ICON.box} My orders</a>
+        <a href="favourites.html">${ICON.heart} Favourites</a>
+        <a class="danger" id="hdr-signout">${ICON.logout} Sign out</a>
+      </span>
+    </span>`;
+
+  const menu = $('#acct-menu');
+  $('#acct-btn').addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('open'); });
+  document.addEventListener('click', () => menu.classList.remove('open'));
+  $('#hdr-signout').addEventListener('click', () => {
+    Auth.signOut();
+    toast('Signed out');
+    setTimeout(() => location.href = 'index.html', 300);
+  });
+}
+
+document.addEventListener('gg:auth', renderAccountSlot);
 
 function renderFooter() {
   const el = $('#site-footer');
@@ -162,6 +201,7 @@ function renderFooter() {
           <a href="#" data-info="shipping">Shipping &amp; Delivery</a>
           <a href="#" data-info="returns">Returns &amp; Exchange</a>
           <a href="#" data-info="alterations">Alterations</a>
+          <a href="account.html">My Account</a>
           <a href="favourites.html">My Favourites</a>
           <a href="admin.html">Admin Panel</a>
         </div>
