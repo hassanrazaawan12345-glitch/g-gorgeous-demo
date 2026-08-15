@@ -75,7 +75,7 @@ function signInForm() {
       <input type="password" id="si-pw" placeholder="Your password" autocomplete="current-password">
       <button class="pw-toggle" data-pw="si-pw" type="button" aria-label="Show password">${pwEye}</button>
     </div>
-    <div class="flex between items-center" style="margin-bottom:20px">
+    <div class="flex between items-center wrap-flex gap-12" style="margin-bottom:20px">
       <label class="check" style="font-size:.85rem"><input type="checkbox" id="si-remember" checked><span>Keep me signed in</span></label>
       <button class="link-btn" id="go-forgot" style="color:var(--gold-deep)">Forgot password?</button>
     </div>
