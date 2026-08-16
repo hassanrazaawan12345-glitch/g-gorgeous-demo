@@ -17,8 +17,7 @@ const SITE = {
   currency: 'Rs',
   freeShipOver: 15000,
   shipFlat: 350,
-  taxRate: 0,
-  adminPin: 'gorgeous2255'
+  taxRate: 0
 };
 
 const CATEGORIES = [

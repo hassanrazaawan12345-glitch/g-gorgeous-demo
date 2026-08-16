@@ -203,7 +203,6 @@ function renderFooter() {
           <a href="#" data-info="alterations">Alterations</a>
           <a href="account.html">My Account</a>
           <a href="favourites.html">My Favourites</a>
-          <a href="admin.html">Admin Panel</a>
         </div>
       </div>
       <div>

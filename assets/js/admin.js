@@ -777,7 +777,6 @@ function viewSettings() {
             <tr><td>TikTok</td><td>${esc(SITE.tiktokHandle)}</td></tr>
             <tr><td>Free delivery over</td><td>${money(SITE.freeShipOver)}</td></tr>
             <tr><td>Delivery charge</td><td>${money(SITE.shipFlat)}</td></tr>
-            <tr><td>Admin PIN</td><td>${esc(SITE.adminPin)}</td></tr>
           </table>
           <p class="hint mt-16">These are set in <b>assets/js/data.js</b> — edit that file to change them across the whole site.</p>
         </div>

@@ -41,6 +41,6 @@ http.createServer((req, res) => {
   console.log('\n  G.Gorgeous demo store running');
   console.log('  ────────────────────────────────');
   console.log(`  Store:  http://localhost:${PORT}/`);
-  console.log(`  Admin:  http://localhost:${PORT}/admin.html   (PIN: gorgeous2255)`);
+  console.log(`  Admin:  http://localhost:${PORT}/admin.html   (sign in with a staff account)`);
   console.log('\n  Press Ctrl+C to stop.\n');
 });

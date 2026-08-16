@@ -32,7 +32,7 @@ Then open <http://localhost:5173/>. Press `Ctrl+C` in the terminal to stop.
 | `checkout.html` | Contact + address + payment, validation, order confirmation |
 | `favourites.html` | Everything the customer has hearted |
 | `account.html` | Sign in, create account, password recovery, and the customer dashboard |
-| `admin.html` | Owner's panel — **PIN: `gorgeous2255`** |
+| `admin.html` | Owner's panel — sign in with a staff account |
 
 ---
 
@@ -96,7 +96,9 @@ Set `AUTH_BACKEND` at the top of `auth.js` when you swap it, so the on-screen "d
 
 ## What the owner can do (Admin panel)
 
-Open `admin.html`, PIN **`gorgeous2255`**.
+Open `admin.html` and sign in with an account whose profile has `role = 'admin'`.
+
+There is deliberately no link to it from the storefront — the owner bookmarks the address.
 
 - **Dashboard** — product count, orders, revenue, stock alerts, catalogue breakdown
 - **Products** — search, edit, delete, add new
