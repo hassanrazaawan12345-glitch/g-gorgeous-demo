@@ -1,28 +1,39 @@
-# Going live: Vercel + Supabase
+# Going live: Cloudflare Pages + Supabase
 
 Two accounts, both free, both keep working when you add a domain later.
 
 ---
 
-## Step 1 — Host it on Vercel (2 minutes, do this first)
+## Step 1 — Host it on Cloudflare Pages (2 minutes, do this first)
 
-The site is already a GitHub repo, so there is no CLI and no upload.
+**Recommended over Vercel** for this project. Three reasons:
 
-1. Go to **[vercel.com/signup](https://vercel.com/signup)** and choose **Continue with GitHub**
-2. Click **Add New → Project**
-3. Find **`g-gorgeous-demo`** in the list and press **Import**
-4. Leave every setting alone — framework preset "Other", no build command, root directory `./`
-5. Press **Deploy**
+1. **Vercel's free "Hobby" plan is for non-commercial use.** A shop taking real orders is commercial, which means the Pro plan at ~$20/month per member. Cloudflare Pages allows commercial use on the free plan.
+2. **Unlimited bandwidth**, versus Vercel's 100 GB/month cap.
+3. **Cloudflare has data centres inside Pakistan** (Karachi, Lahore, Islamabad), so the site loads noticeably faster for local customers.
 
-About a minute later you get a live URL like `g-gorgeous-demo.vercel.app`.
+The site is already a GitHub repo, so there is no CLI and no upload:
 
-From then on **every push to `main` redeploys automatically**. Nothing else to do.
+1. Sign up at **[dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up)**
+2. Left sidebar → **Workers & Pages** → **Create** → **Pages** tab → **Connect to Git**
+3. Authorise GitHub, pick **`g-gorgeous-demo`**
+4. Build settings — the site is plain static, so leave these empty:
+   - Framework preset: **None**
+   - Build command: *(blank)*
+   - Build output directory: **`/`**
+5. **Save and Deploy**
+
+A minute later you get `g-gorgeous-demo.pages.dev`. **Every push to `main` redeploys automatically.**
 
 ### Adding your domain later
 
-Buy the domain whenever you're ready, then in Vercel: **Project → Settings → Domains → Add**. Vercel shows you the two DNS records to paste at your registrar, and issues the HTTPS certificate free. The site does not change, nothing gets rebuilt, and the `.vercel.app` URL keeps working alongside it.
+Buy the domain whenever you're ready, then: **your Pages project → Custom domains → Set up a domain**. Cloudflare handles DNS and the HTTPS certificate itself — if you buy the domain through Cloudflare Registrar it's a two-click job, and they sell at cost with no markup.
 
-Nothing in the code refers to a domain, so there is no migration step. This is why hosting now and buying the domain later costs you nothing.
+The site does not change and nothing gets rebuilt. Nothing in the code refers to a domain, so there is no migration step. This is why hosting now and buying the domain later costs you nothing.
+
+### If you prefer Vercel anyway
+
+[vercel.com/signup](https://vercel.com/signup) → **Continue with GitHub** → **Add New → Project** → import `g-gorgeous-demo` → change nothing → **Deploy**. A `vercel.json` is already in the repo, as is a `_headers` file for Cloudflare, so either host works with no code changes. Just be aware of the commercial-use term on the free plan.
 
 ---
 
@@ -79,18 +90,40 @@ After that, accounts work across devices, the owner sees real orders from real c
 
 ---
 
-## Free tier limits
+## Free tier limits — and whether they're enough
 
 | | Free allowance | Realistic for this shop? |
 |---|---|---|
-| Vercel bandwidth | 100 GB/month | Yes, comfortably |
-| Supabase database | 500 MB | Thousands of orders |
-| Supabase storage | 1 GB | ~500 product photos |
+| Cloudflare Pages bandwidth | **Unlimited** | Yes |
+| Cloudflare Pages builds | 500/month | Yes — that's 500 pushes |
+| Supabase database | 500 MB | Years of orders. Text rows are tiny. |
+| Supabase file storage | 1 GB | ~1,000 compressed photos |
+| Supabase egress | 5 GB/month | **The real limit — see below** |
 | Supabase auth users | 50,000 monthly active | Yes |
 | Password-reset emails | Included | Yes |
-| SMS codes | **Not included** — pay per message via Twilio | Optional |
+| SMS codes | **Not included** — billed per message via Twilio | Optional |
 
-The free tiers pause a Supabase project after a week of total inactivity; one visit wakes it. Not an issue for a live shop.
+### Keeping inside the free tier
+
+The one number that could bite is Supabase's **5 GB/month egress**, because product photos are heavy and data is not. The fix is architectural:
+
+- **Serve product photos from Cloudflare, not Supabase.** They live in the repo as static files, and Cloudflare's bandwidth is unlimited and free. Supabase then only sends JSON — a few KB per page view instead of a few MB.
+- **Keep the admin panel's image compression.** It already resizes uploads to ~100 KB before saving. Uploading raw 4 MB phone photos would fill 1 GB in about 250 images; compressed, the same space holds thousands.
+- **Watch videos.** A 30-second clip is 5–20 MB. Fifty of them would fill the free storage on their own. If the shop wants lots of video, put those on Cloudflare R2 (10 GB free, and unlike everyone else, **zero egress charges**) or just link to their TikTok.
+
+Done that way, this shop will not come close to the free limits.
+
+### When to actually pay
+
+Supabase **Pro is $25/month** (check [supabase.com/pricing](https://supabase.com/pricing) — plans change). It raises the database to 8 GB, storage to 100 GB and egress to 250 GB, and adds daily backups and email support.
+
+Worth paying for when one of these becomes true:
+
+- **You want daily automatic backups.** The free plan has none. Once real customer orders are in the database, this is the strongest argument — losing them would be much more expensive than $25.
+- Traffic outgrows 5 GB egress, or storage outgrows 1 GB.
+- **The project pausing becomes annoying.** Free projects pause after 7 days with no requests at all; the next visit wakes it after a few seconds. A shop with daily traffic never pauses, so this rarely matters in practice.
+
+**Start on free.** Nothing needs migrating when you upgrade — it's a button in the dashboard, same project, same keys, no downtime.
 
 ---
 
