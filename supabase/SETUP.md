@@ -50,10 +50,18 @@ The site does not change and nothing gets rebuilt. Nothing in the code refers to
 ### Load the database structure
 
 4. Left sidebar → **SQL Editor** → **New query**
-5. Open **`supabase/schema.sql`** from this repo, copy the whole file, paste it in
+5. Open **`supabase/migrations/20260816090000_initial_schema.sql`** from this repo, copy the whole file, paste it in
 6. Press **Run**. You should see *Success. No rows returned.*
 
 That creates every table, the security rules, the server-side order function and the image bucket.
+
+Then load the catalogue the same way with **`supabase/seed.sql`** — 20 products with colours, stock, photos and reviews.
+
+### Why the files are laid out this way
+
+`supabase/migrations/` and `supabase/seed.sql` are the layout the Supabase CLI and its GitHub integration expect, so schema history is versioned in git either way. Copy-pasting into the SQL Editor works exactly the same and needs no CLI — that is the simpler route and the one to use unless schema changes become frequent.
+
+**On connecting Supabase to GitHub:** it is genuinely optional here. It shines when several people change the schema and you want preview branches per pull request. For a single shop whose schema changes a few times a year, running SQL in the dashboard is fewer moving parts and one less thing to break. The structure is in place if you ever want to switch.
 
 ### Turn on the login methods
 

@@ -1,0 +1,5 @@
+# Supabase CLI / GitHub integration config.
+# Only needed if you connect this repo in Supabase → Integrations → GitHub.
+# Running the SQL by hand in the dashboard works without any of this.
+
+project_id = "kqrfreudkcloszuxjogd"
