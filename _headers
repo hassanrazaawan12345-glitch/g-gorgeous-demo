@@ -1,14 +1,21 @@
-# Cloudflare Pages headers (Vercel uses vercel.json instead — both are present
-# so the site can be hosted on either without changes).
+# Cloudflare headers. vercel.json mirrors this so either host works.
 
+# Photos get a new filename whenever they change, so they can be cached hard.
 /assets/img/*
   Cache-Control: public, max-age=31536000, immutable
 
-/assets/css/*
-  Cache-Control: public, max-age=604800
-
+# Code keeps the SAME filename across deploys, so it must be revalidated
+# every time. "no-cache" does not mean "do not store" — the browser keeps
+# the file and gets a fast 304 when it has not changed. Caching these for
+# days left phones running stale JavaScript with no way to update.
 /assets/js/*
-  Cache-Control: public, max-age=604800
+  Cache-Control: no-cache
+
+/assets/css/*
+  Cache-Control: no-cache
+
+/*.html
+  Cache-Control: no-cache
 
 /*
   X-Content-Type-Options: nosniff
