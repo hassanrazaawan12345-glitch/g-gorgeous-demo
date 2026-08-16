@@ -3,11 +3,14 @@
   // The site is plain HTML/CSS/JS, so there is no Worker script — Cloudflare
   // serves dist/ straight from its edge network.
   //
-  // Cloudflare build settings that go with this:
-  //   Build command   node build.mjs
-  //   Deploy command  npx wrangler deploy
+  // Wrangler runs this build itself before deploying, so the deploy works
+  // whether or not a Build command is set in the Cloudflare dashboard.
+  // Deploy command stays the default: npx wrangler deploy
   "name": "g-gorgeous-demo",
   "compatibility_date": "2025-01-01",
+  "build": {
+    "command": "node build.mjs"
+  },
   "assets": {
     "directory": "./dist",
     // serve 404.html with a real 404 status for unknown paths
