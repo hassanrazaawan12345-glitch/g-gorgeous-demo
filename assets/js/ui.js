@@ -276,9 +276,6 @@ function productCard(p) {
       </span>
     </a>
     <button class="card-fav ${isFav(p.id) ? 'on' : ''}" data-fav="${p.id}" aria-label="Save to favourites">${ICON.heart}</button>
-    <div class="card-quick">
-      <button class="btn btn-sm btn-block" data-quick="${p.id}">Quick view</button>
-    </div>
     <div class="card-body">
       <div class="card-cat">${esc(categoryName(p.category))}</div>
       <h3 class="card-title"><a href="product.html?id=${p.id}">${esc(p.name)}</a></h3>
@@ -302,78 +299,7 @@ document.addEventListener('click', e => {
     toast(on ? 'Added to favourites' : 'Removed from favourites');
     return;
   }
-  const q = e.target.closest('[data-quick]');
-  if (q) { e.preventDefault(); quickView(q.dataset.quick); }
 });
-
-/* ---------- quick view ---------- */
-
-function quickView(id) {
-  const p = productById(id);
-  if (!p) return;
-  const imgs = productImages(p);
-  const sizes = p.sizes || [];
-  const firstAvail = (sizes.find(s => s.qty > 0) || sizes[0] || {}).size || '';
-  const st = ratingStats(p.id);
-
-  const m = openModal(`<div class="modal-pad">
-    <div class="pdp" style="gap:34px">
-      <div>
-        <div class="gallery-main"><img id="qv-img" src="${imgs[0]}" alt="${esc(p.name)}"></div>
-        <div class="thumbs">${imgs.map((src, i) =>
-          `<div class="thumb ${i === 0 ? 'on' : ''}" data-qvi="${i}"><img src="${src}" alt=""></div>`).join('')}</div>
-      </div>
-      <div class="pdp-info">
-        <p class="eyebrow">${esc(categoryName(p.category))}</p>
-        <h2>${esc(p.name)}</h2>
-        ${st.count ? `<div class="rating-row">${starsHTML(st.avg)}<span>${st.avg.toFixed(1)} · ${st.count} reviews</span></div>` : ''}
-        <div class="pdp-price">
-          <span class="now">${money(effectivePrice(p))}</span>
-          ${discountPct(p) ? `<span class="was">${money(p.price)}</span><span class="badge badge-sale off">-${discountPct(p)}%</span>` : ''}
-        </div>
-        <p class="pdp-desc">${esc(p.description)}</p>
-        <div class="opt-block">
-          <div class="opt-head"><span class="lbl">Colour</span><span class="sel" id="qv-cname">${esc((p.colors[0] || {}).name || '')}</span></div>
-          <div class="color-dots" id="qv-colors">
-            ${(p.colors || []).map((c, i) => `<span class="color-dot ${i === 0 ? 'on' : ''}" data-c="${esc(c.name)}" style="background:${c.hex}" title="${esc(c.name)}"></span>`).join('')}
-          </div>
-        </div>
-        <div class="opt-block">
-          <div class="opt-head"><span class="lbl">Size</span></div>
-          <div class="size-pills" id="qv-sizes">
-            ${sizes.map(s => `<div class="size-pill ${s.size === firstAvail ? 'on' : ''} ${s.qty <= 0 ? 'disabled' : ''}" data-s="${esc(s.size)}">${esc(s.size)}</div>`).join('')}
-          </div>
-        </div>
-        <div class="buy-row">
-          <button class="btn btn-gold" id="qv-add" ${totalStock(p) === 0 ? 'disabled' : ''}>${totalStock(p) === 0 ? 'Sold out' : 'Add to cart'}</button>
-          <a class="btn btn-ghost" href="product.html?id=${p.id}">Full details</a>
-        </div>
-      </div>
-    </div></div>`);
-
-  let color = (p.colors[0] || {}).name || '', size = firstAvail;
-  $$('[data-qvi]', m).forEach(t => t.onclick = () => {
-    $$('[data-qvi]', m).forEach(x => x.classList.remove('on')); t.classList.add('on');
-    $('#qv-img', m).src = imgs[+t.dataset.qvi];
-  });
-  $$('#qv-colors .color-dot', m).forEach(d => d.onclick = () => {
-    $$('#qv-colors .color-dot', m).forEach(x => x.classList.remove('on')); d.classList.add('on');
-    color = d.dataset.c; $('#qv-cname', m).textContent = color;
-  });
-  $$('#qv-sizes .size-pill', m).forEach(s => s.onclick = () => {
-    if (s.classList.contains('disabled')) return;
-    $$('#qv-sizes .size-pill', m).forEach(x => x.classList.remove('on')); s.classList.add('on');
-    size = s.dataset.s;
-  });
-  const addBtn = $('#qv-add', m);
-  if (addBtn) addBtn.onclick = () => {
-    if (!size) return toast('Please choose a size', 'err');
-    addToCart(p.id, size, color, 1);
-    m.close();
-    toast(`${p.name} added to cart`);
-    openCartDrawer();
-  };
-}
 
 /* ---------- cart drawer ---------- */
 

@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (p.get('q')) state.q = p.get('q');
 
   mountChrome(p.get('cat') || 'home');
-  buildCategoryStrip();
   buildFeatured();
   buildAssurances();
   buildVisit();
@@ -38,20 +37,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- static blocks ---------- */
-
-function buildCategoryStrip() {
-  const products = getProducts();
-  $('#stat-styles').textContent = products.length;
-  $('#stat-cats').textContent = CATEGORIES.length;
-  $('#cat-strip').innerHTML = CATEGORIES.map(c => {
-    const n = products.filter(p => p.category === c.slug).length;
-    return `<a class="cat-card" href="index.html?cat=${c.slug}">
-      <div class="cat-ico">${CAT_ICON[c.art]}</div>
-      <b>${c.name}</b>
-      <span>${n} ${n === 1 ? 'style' : 'styles'}</span>
-    </a>`;
-  }).join('');
-}
 
 function buildFeatured() {
   const list = getProducts().filter(p => p.featured).slice(0, 4);

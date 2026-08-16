@@ -375,12 +375,7 @@ select {
 .card-fav:hover { color: var(--danger); transform: scale(1.08); }
 .card-fav.on { color: #d13b3b; }
 .card-fav.on svg { fill: currentColor; }
-.card-quick {
-  position: absolute; left: 10px; right: 10px; bottom: 10px;
-  opacity: 0; transform: translateY(8px); transition: .26s ease; z-index: 2;
-}
-.card:hover .card-quick { opacity: 1; transform: translateY(0); }
-.card-body { padding: 14px 2px 0; }
+.card:hover .card-body { padding: 14px 2px 0; }
 .card-cat { font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; color: var(--gold-deep); }
 .card-title { font-family: var(--serif); font-size: 1.12rem; margin: 4px 0 6px; }
 .card-title a:hover { color: var(--gold-deep); }
@@ -985,8 +980,7 @@ table.data tr:hover td { background: #fdfcfa; }
   .footer-top { grid-template-columns: 1fr; gap: 30px; }
   .stat-grid { grid-template-columns: 1fr 1fr; }
   .modal-pad { padding: 22px; }
-  .card-quick { opacity: 1; transform: none; }
-  .steps { font-size: .62rem; }
+    .steps { font-size: .62rem; }
   .step-sep { width: 26px; margin: 0 8px; }
 }
 
