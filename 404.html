@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found — G.Gorgeous</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="wrap">
+  <div class="empty-state" style="padding:90px 20px 70px">
+    <p class="eyebrow">Error 404</p>
+    <h1 style="font-size:clamp(2.4rem,7vw,4rem)">This page has been taken in</h1>
+    <div class="rule-ornament"><span>◆</span></div>
+    <p class="muted" style="max-width:460px;margin:0 auto 30px">
+      The page you were looking for is not here. It may have been moved, or the link may be mistyped.
+    </p>
+    <div class="flex gap-12 wrap-flex" style="justify-content:center">
+      <a class="btn btn-gold" href="/">Back to the shop</a>
+      <a class="btn btn-ghost" href="/index.html#shop">Browse the collection</a>
+    </div>
+  </div>
+
+  <section class="section" style="padding-top:0">
+    <div class="section-head">
+      <p class="eyebrow">While you are here</p>
+      <h2>Featured this season</h2>
+      <div class="rule-ornament"><span>◆</span></div>
+    </div>
+    <div class="product-grid cols-4" id="fallback-grid"></div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="/assets/js/data.js"></script>
+<script src="/assets/js/catalog.js"></script>
+<script src="/assets/js/store.js"></script>
+<script src="/assets/js/auth.js"></script>
+<script src="/assets/js/ui.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  mountChrome('');
+  const picks = getProducts().filter(p => p.featured).slice(0, 4);
+  document.getElementById('fallback-grid').innerHTML = picks.map(productCard).join('');
+});
+</script>
+</body>
+</html>
