@@ -189,6 +189,41 @@ alter table public.reviews        enable row level security;
 alter table public.orders         enable row level security;
 alter table public.order_items    enable row level security;
 
+-- ----------------------------------------------------------------------------
+-- Grants for the Data API.
+--
+-- PostgREST needs BOTH a grant and an RLS policy before a row is visible.
+-- These are written out explicitly so the schema works whether or not
+-- "Automatically expose new tables" was enabled when the project was created.
+-- RLS above is what actually decides which rows each person can touch — the
+-- grants below only say which tables are reachable at all.
+-- ----------------------------------------------------------------------------
+
+grant usage on schema public to anon, authenticated;
+
+-- catalogue: readable by everyone, including signed-out visitors
+grant select on public.categories, public.products, public.product_colors,
+                public.product_sizes, public.product_media, public.reviews
+  to anon, authenticated;
+
+-- admins are ordinary signed-in users whose profile row has role='admin';
+-- the is_admin() policies above are what stop everyone else writing
+grant insert, update, delete on public.categories, public.products,
+                                public.product_colors, public.product_sizes,
+                                public.product_media, public.reviews
+  to authenticated;
+
+-- a customer's own records
+grant select on public.profiles to authenticated;
+grant select, insert, update, delete on public.addresses to authenticated;
+grant select on public.orders, public.order_items to authenticated;
+
+-- admins manage orders through the same tables, gated by RLS
+grant insert, update, delete on public.orders, public.order_items to authenticated;
+
+-- guests never write directly: orders are created only by place_order(),
+-- which is security definer and granted separately at the end of this file
+
 -- profiles: you see and edit only yourself; admins see everyone
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select
