@@ -42,7 +42,7 @@ function renderAuthBanner() {
     el.innerHTML = `
       <span>Signed in as <b>${esc(user.name)}</b> — your details are filled in below.</span>
       ${addrs.length > 1 ? `<select id="addr-pick" style="width:auto;min-width:220px">
-          ${addrs.map(a => `<option value="${a.id}" ${a.isDefault ? 'selected' : ''}>${esc(a.label)} — ${esc(a.city)}</option>`).join('')}
+          ${addrs.map(a => `<option value="${a.id}" ${a.is_default ? 'selected' : ''}>${esc(a.label)} — ${esc(a.city)}</option>`).join('')}
         </select>` : `<a class="btn btn-sm btn-ghost" href="account.html">My account</a>`}`;
   } else {
     el.innerHTML = `
@@ -237,7 +237,7 @@ function rememberAddress(customer) {
     address: customer.address, city: customer.city, province: customer.province,
     postal: customer.postal, phone: customer.phone,
     isDefault: !existing.length
-  });
+  }).catch(e => console.warn('Could not save address:', e.message));
 }
 
 function submit(e) {
@@ -265,11 +265,18 @@ function submit(e) {
     status: m === 'cod' ? 'Unpaid — collect on delivery' : (m === 'bank' ? 'Awaiting transfer' : 'Paid (demo)')
   };
 
-  setTimeout(() => {
-    const order = placeOrder(customer, payment);
-    if (!order) { btn.disabled = false; btn.textContent = 'Place order'; return toast('Something went wrong', 'err'); }
-    history.replaceState({}, '', 'checkout.html?done=1');
-    showSuccess(order);
+  setTimeout(async () => {
+    try {
+      const order = await placeOrder(customer, payment);
+      if (!order) throw new Error('Your cart is empty');
+      history.replaceState({}, '', 'checkout.html?done=1');
+      showSuccess(order);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Place order';
+      // the database rejects the order if a size sold out while they shopped
+      toast(e.message || 'Could not place the order', 'err');
+    }
   }, 1100);
 }
 

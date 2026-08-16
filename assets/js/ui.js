@@ -164,8 +164,8 @@ function renderAccountSlot() {
   const menu = $('#acct-menu');
   $('#acct-btn').addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('open'); });
   document.addEventListener('click', () => menu.classList.remove('open'));
-  $('#hdr-signout').addEventListener('click', () => {
-    Auth.signOut();
+  $('#hdr-signout').addEventListener('click', async () => {
+    await Auth.signOut();
     toast('Signed out');
     setTimeout(() => location.href = 'index.html', 300);
   });

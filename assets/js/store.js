@@ -223,9 +223,45 @@ function cartTotals() {
 
 const getOrders = () => read(DB.ORDERS, []);
 
-function placeOrder(customer, payment) {
+/* Orders go through the place_order() database function, which re-reads
+   prices and stock from the database and does the whole thing in one
+   transaction. Nothing the browser sends about price or availability is
+   trusted — a customer editing values in dev tools changes nothing. */
+async function placeOrder(customer, payment) {
   const t = cartTotals();
   if (!t.lines.length) return null;
+
+  if (sb) {
+    const items = t.lines.map(l => ({
+      product_id: l.productId, size: l.size, color: l.color, qty: l.qty
+    }));
+    const { data, error } = await sb.rpc('place_order', {
+      p_items: items,
+      p_customer: {
+        name: customer.name, email: customer.email, phone: customer.phone,
+        address: customer.address, city: customer.city, province: customer.province,
+        postal: customer.postal, notes: customer.notes
+      },
+      p_payment: { method: payment.label, status: payment.status, ref: payment.last4 || null },
+      p_promo: t.promoCode || null
+    });
+    if (error) throw new Error(error.message || 'Could not place the order');
+
+    const order = orderRowToOrder({ ...data, order_items: t.lines.map(l => ({
+      product_id: l.productId, name: l.product.name, sku: l.product.sku,
+      size: l.size, color: l.color, qty: l.qty,
+      unit_price: l.unit, line_total: l.lineTotal
+    })) });
+    order.payment = payment;
+
+    clearCart();
+    setPromo(null);
+    DBCache.loaded = false;            // stock changed — reload on next page
+    sessionStorage.setItem('gg.lastOrder', JSON.stringify(order));
+    return order;
+  }
+
+  /* offline fallback: keep the order in this browser */
   const signedIn = (typeof Auth !== 'undefined') ? Auth.currentUser() : null;
   const order = {
     id: 'GG' + Date.now().toString().slice(-8),
@@ -237,19 +273,16 @@ function placeOrder(customer, payment) {
       productId: l.productId, name: l.product.name, sku: l.product.sku,
       size: l.size, color: l.color, qty: l.qty, unit: l.unit, lineTotal: l.lineTotal
     })),
-    totals: { subtotal: t.subtotal, discount: t.discount, promoCode: t.promoCode, shipping: t.shipping, tax: t.tax, total: t.total }
+    totals: { subtotal: t.subtotal, discount: t.discount, promoCode: t.promoCode,
+              shipping: t.shipping, tax: t.tax, total: t.total }
   };
-
-  // decrement stock
-  const products = getProducts();
+  const products = localProducts();
   order.items.forEach(item => {
-    const p = products.find(x => x.id === item.productId);
-    if (!p) return;
-    const s = (p.sizes || []).find(x => x.size === item.size);
+    const prod = products.find(x => x.id === item.productId);
+    const s = prod && (prod.sizes || []).find(x => x.size === item.size);
     if (s) s.qty = Math.max(0, (+s.qty || 0) - item.qty);
   });
   saveProducts(products);
-
   const orders = getOrders();
   orders.unshift(order);
   write(DB.ORDERS, orders);

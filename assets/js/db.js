@@ -76,6 +76,9 @@ const PRODUCT_SELECT =
 async function loadCatalogue() {
   if (DBCache.loaded) return DBCache;
 
+  // the session must be known before any page renders its header
+  await bootAuth();
+
   if (!sb) {
     DBCache.products = localProducts();
     DBCache.reviews = localReviews();

@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function render() {
+  if (Auth.isRecovery() && Auth.isSignedIn()) return renderRecovery();
   Auth.isSignedIn() ? renderDashboard() : renderAuth();
 }
 
@@ -27,13 +28,7 @@ function render() {
    Signed out
    ========================================================================== */
 
-const DEMO_NOTE = `
-  <div class="demo-note">
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-      <circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.2v.1"/></svg>
-    <div><b>Demo accounts</b>Accounts are stored in this browser only, and reset codes are shown on screen
-    instead of being emailed or texted. Connecting a real auth service makes both work properly.</div>
-  </div>`;
+const DEMO_NOTE = '';
 
 function renderAuth() {
   const m = $('#account-main');
@@ -68,8 +63,8 @@ const pwEye = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" strok
 function signInForm() {
   return `
     <div class="field">
-      <label>Email or mobile number</label>
-      <input type="text" id="si-id" placeholder="you@example.com or 03XX XXXXXXX" autocomplete="username">
+      <label>Email address</label>
+      <input type="text" id="si-id" placeholder="you@example.com" autocomplete="username">
     </div>
     <div class="field pw-field">
       <label>Password</label>
@@ -171,13 +166,14 @@ function bindSignUp() {
     if (!$('#su-terms').checked) return toast('Please accept the terms to continue', 'err');
     busy(btn, true, 'Creating account…');
     try {
-      const user = await Auth.signUp({
+      const res = await Auth.signUp({
         name: $('#su-name').value,
         email: $('#su-email').value,
         phone: $('#su-phone').value,
         password: pw.value
       });
-      toast(`Account created — welcome, ${user.name.split(' ')[0]}`);
+      if (res.needsConfirmation) return showCheckEmail(res.email);
+      toast('Account created');
       setTimeout(() => { location.href = nextUrl() || 'account.html'; }, 500);
     } catch (e) {
       busy(btn, false);
@@ -186,149 +182,91 @@ function bindSignUp() {
   };
 }
 
-/* ---------- forgot password ---------- */
+/* ---------- password recovery ----------
+   Supabase emails a one-time link. Following it signs the person in with a
+   recovery session, and the page then asks for a new password. There is no
+   code to type, and the link is single-use and time limited. */
 
 function renderForgot() {
-  const card = $('#auth-card');
-  card.innerHTML = `
-    <div class="steps-mini">
-      <i class="${forgotStep >= 1 ? 'on' : ''}"></i>
-      <i class="${forgotStep >= 2 ? 'on' : ''}"></i>
-      <i class="${forgotStep >= 3 ? 'on' : ''}"></i>
+  $('#auth-card').innerHTML = `
+    <h3 style="margin-bottom:4px">Reset your password</h3>
+    <p class="muted" style="font-size:.88rem;margin-top:0">
+      Enter the email you signed up with and we will send you a reset link.</p>
+    <div class="field">
+      <label>Email address</label>
+      <input type="email" id="fg-id" placeholder="you@example.com" autocomplete="email">
     </div>
-    ${DEMO_NOTE}
-    <div id="forgot-body"></div>
+    <button class="btn btn-gold btn-block" id="fg-send">Send reset link</button>
     <p class="auth-alt"><button id="back-signin">← Back to sign in</button></p>`;
 
-  $('#back-signin').onclick = () => { view = 'signin'; forgotStep = 1; renderAuth(); };
-  ({ 1: forgotStep1, 2: forgotStep2, 3: forgotStep3 })[forgotStep]();
-}
-
-function forgotStep1() {
-  $('#forgot-body').innerHTML = `
-    <h3 style="margin-bottom:4px">How should we send your code?</h3>
-    <p class="muted" style="font-size:.88rem;margin-top:0">Choose where to receive a 6-digit recovery code.</p>
-    <div class="channel-pick" id="chan">
-      <label class="channel-opt on" data-c="email">
-        <span class="ic">${ICON.chat}</span>
-        <span><b>By email</b><small>Sent to your registered email address</small></span>
-      </label>
-      <label class="channel-opt" data-c="sms">
-        <span class="ic">${ICON.phone}</span>
-        <span><b>By SMS</b><small>Sent to your registered mobile number</small></span>
-      </label>
-    </div>
-    <div class="field">
-      <label id="fg-label">Email address</label>
-      <input type="text" id="fg-id" placeholder="you@example.com">
-    </div>
-    <button class="btn btn-gold btn-block" id="fg-send">Send recovery code</button>`;
-
-  $$('#chan .channel-opt').forEach(o => o.onclick = () => {
-    $$('#chan .channel-opt').forEach(x => x.classList.remove('on'));
-    o.classList.add('on');
-    forgot.channel = o.dataset.c;
-    $('#fg-label').textContent = forgot.channel === 'email' ? 'Email address' : 'Mobile number';
-    $('#fg-id').placeholder = forgot.channel === 'email' ? 'you@example.com' : '03XX XXXXXXX';
-    $('#fg-id').value = '';
-  });
-
-  $('#fg-send').onclick = () => {
-    const id = $('#fg-id').value.trim();
-    if (forgot.channel === 'email' && !isEmail(id)) return toast('Please enter a valid email address', 'err');
-    if (forgot.channel === 'sms' && !isPhone(id)) return toast('Please enter a valid mobile number', 'err');
-
-    const res = Auth.requestReset(id);
-    forgot.identifier = id;
-    forgot.masked = res.destination || id;
-    forgot.demoCode = res.code || '';
-    forgotStep = 2;
-    renderForgot();
-  };
-}
-
-function forgotStep2() {
-  $('#forgot-body').innerHTML = `
-    <h3 style="margin-bottom:4px">Enter your code</h3>
-    <p class="muted" style="font-size:.88rem;margin-top:0">
-      We sent a 6-digit code to <b>${esc(forgot.masked)}</b>. It expires in 10 minutes.</p>
-
-    ${forgot.demoCode ? `
-      <div class="code-box">
-        <div class="lbl" style="font-size:.66rem;letter-spacing:.2em;text-transform:uppercase">Demo — your code is</div>
-        <div class="code">${esc(forgot.demoCode)}</div>
-        <div class="exp">A live site would ${forgot.channel === 'email' ? 'email' : 'text'} this instead of showing it</div>
-      </div>` : `
-      <div class="demo-note" style="background:var(--surface);border-color:var(--line);color:var(--muted)">
-        <span></span><div>If an account exists for that ${forgot.channel === 'email' ? 'email' : 'number'}, a code is on its way.</div>
-      </div>`}
-
-    <div class="field">
-      <label>6-digit code</label>
-      <div class="otp-row" id="otp">
-        ${[0,1,2,3,4,5].map(i => `<input type="text" inputmode="numeric" maxlength="1" data-i="${i}">`).join('')}
-      </div>
-    </div>
-    <button class="btn btn-gold btn-block" id="fg-verify">Verify code</button>
-    <p class="auth-alt"><button id="fg-resend">Resend code</button></p>`;
-
-  const boxes = $$('#otp input');
-  boxes[0].focus();
-  boxes.forEach((b, i) => {
-    b.oninput = () => {
-      b.value = b.value.replace(/\D/g, '');
-      if (b.value && i < 5) boxes[i + 1].focus();
-      if (boxes.every(x => x.value)) $('#fg-verify').click();
-    };
-    b.onkeydown = e => { if (e.key === 'Backspace' && !b.value && i > 0) boxes[i - 1].focus(); };
-    b.onpaste = e => {
-      const d = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
-      if (!d) return;
-      e.preventDefault();
-      d.split('').forEach((ch, k) => { if (boxes[k]) boxes[k].value = ch; });
-      if (d.length === 6) $('#fg-verify').click();
-    };
-  });
-
-  $('#fg-verify').onclick = () => {
-    const code = boxes.map(b => b.value).join('');
-    if (code.length !== 6) return toast('Please enter all six digits', 'err');
+  $('#back-signin').onclick = () => { view = 'signin'; renderAuth(); };
+  const go = async () => {
+    const btn = $('#fg-send');
+    const em = $('#fg-id').value.trim();
+    if (!isEmail(em)) return toast('Please enter a valid email address', 'err');
+    busy(btn, true, 'Sending…');
     try {
-      forgot.token = Auth.verifyReset(forgot.identifier, code);
-      forgotStep = 3;
-      renderForgot();
-    } catch (e) {
-      toast(e.message, 'err');
-      boxes.forEach(b => b.value = '');
-      boxes[0].focus();
-    }
+      await Auth.requestReset(em);
+      showResetSent(em);
+    } catch (e) { busy(btn, false); toast(e.message, 'err'); }
   };
-
-  $('#fg-resend').onclick = () => {
-    const res = Auth.requestReset(forgot.identifier);
-    forgot.demoCode = res.code || '';
-    toast('A new code has been sent');
-    renderForgot();
-  };
+  $('#fg-send').onclick = go;
+  $('#fg-id').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 
-function forgotStep3() {
-  $('#forgot-body').innerHTML = `
-    <h3 style="margin-bottom:4px">Choose a new password</h3>
-    <p class="muted" style="font-size:.88rem;margin-top:0">Make it something you have not used here before.</p>
-    <div class="field pw-field">
-      <label>New password</label>
-      <input type="password" id="np" placeholder="At least 8 characters" autocomplete="new-password">
-      <button class="pw-toggle" data-pw="np" type="button">${pwEye}</button>
-      <div class="pw-meter" id="np-meter"><i></i><i></i><i></i><i></i><i></i></div>
-      <div class="pw-hint"><span id="np-strength">Use 8+ characters with a letter and a number</span></div>
+function noticePanel(title, lines, email) {
+  $('#account-main').innerHTML = `
+    <div class="page-head">
+      <p class="eyebrow">Check your inbox</p>
+      <h1>${esc(title)}</h1>
+      <div class="rule-ornament"><span>◆</span></div>
     </div>
-    <div class="field pw-field">
-      <label>Confirm new password</label>
-      <input type="password" id="np2" placeholder="Re-enter your password" autocomplete="new-password">
-      <button class="pw-toggle" data-pw="np2" type="button">${pwEye}</button>
+    <div class="auth-wrap" style="padding-bottom:60px">
+      <div class="auth-card center">
+        <div class="success-mark" style="margin-bottom:18px">${ICON.chat}</div>
+        <p class="muted">${lines}</p>
+        <p class="hint mt-16">Sent to <b>${esc(email)}</b>. It can take a minute — check spam if it has not arrived.</p>
+        <a class="btn btn-ghost btn-block mt-24" href="account.html">Back to sign in</a>
+      </div>
+    </div>`;
+}
+
+function showResetSent(email) {
+  noticePanel('Reset link sent',
+    'Open the email and follow the link. It will bring you back here to choose a new password.', email);
+}
+
+function showCheckEmail(email) {
+  noticePanel('Confirm your email',
+    'We have sent a confirmation link. Click it to activate your account, then sign in.', email);
+}
+
+/* Shown when the person arrives back from the reset email. */
+function renderRecovery() {
+  Auth.markRecovery();
+  $('#account-main').innerHTML = `
+    <div class="page-head">
+      <p class="eyebrow">Account recovery</p>
+      <h1>Choose a new password</h1>
+      <div class="rule-ornament"><span>◆</span></div>
     </div>
-    <button class="btn btn-gold btn-block" id="np-go">Update password</button>`;
+    <div class="auth-wrap" style="padding-bottom:60px">
+      <div class="auth-card">
+        <div class="field pw-field">
+          <label>New password</label>
+          <input type="password" id="np" placeholder="At least 8 characters" autocomplete="new-password">
+          <button class="pw-toggle" data-pw="np" type="button">${pwEye}</button>
+          <div class="pw-meter" id="np-meter"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="pw-hint"><span id="np-strength">Use 8+ characters with a letter and a number</span></div>
+        </div>
+        <div class="field pw-field">
+          <label>Confirm new password</label>
+          <input type="password" id="np2" placeholder="Re-enter your password" autocomplete="new-password">
+          <button class="pw-toggle" data-pw="np2" type="button">${pwEye}</button>
+        </div>
+        <button class="btn btn-gold btn-block" id="np-go">Update password</button>
+      </div>
+    </div>`;
 
   bindPwToggles();
   const np = $('#np');
@@ -337,21 +275,16 @@ function forgotStep3() {
     $('#np-meter').className = 'pw-meter s' + s.score;
     $('#np-strength').textContent = np.value ? s.label : 'Use 8+ characters with a letter and a number';
   };
-
   $('#np-go').onclick = async () => {
     if (np.value !== $('#np2').value) return toast('Passwords do not match', 'err');
     const btn = $('#np-go');
     busy(btn, true, 'Updating…');
     try {
-      const user = await Auth.resetPassword(forgot.token, np.value);
-      await Auth.signIn({ identifier: user.email, password: np.value, remember: true });
+      await Auth.completeRecovery(np.value);
+      history.replaceState({}, '', 'account.html');
       toast('Password updated — you are signed in');
-      view = 'signin'; forgotStep = 1;
-      setTimeout(render, 400);
-    } catch (e) {
-      busy(btn, false);
-      toast(e.message, 'err');
-    }
+      render();
+    } catch (e) { busy(btn, false); toast(e.message, 'err'); }
   };
 }
 
@@ -367,9 +300,9 @@ const ACCT_NAV = [
   ['security', 'Security', 'shield']
 ];
 
-function renderDashboard() {
+async function renderDashboard() {
   const u = Auth.currentUser();
-  const orders = Auth.myOrders();
+  const orders = await Auth.myOrders();
 
   $('#account-main').innerHTML = `
     <div class="page-head">
@@ -406,8 +339,8 @@ function renderDashboard() {
     $$('.acct-panel').forEach(x => x.classList.toggle('on', x.id === 'p-' + panel));
   });
 
-  $('#do-signout').onclick = () => confirmBox('Sign out?', 'You can sign back in at any time.', () => {
-    Auth.signOut();
+  $('#do-signout').onclick = () => confirmBox('Sign out?', 'You can sign back in at any time.', async () => {
+    await Auth.signOut();
     toast('Signed out');
     location.href = 'index.html';
   }, 'Sign out');
@@ -502,13 +435,13 @@ function addressesPanel() {
       <button class="btn btn-sm btn-gold" id="add-addr">${ICON.plus} Add address</button>
     </div>
     ${list.length ? `<div class="addr-grid">${list.map(a => `
-      <div class="addr-card ${a.isDefault ? 'default' : ''}">
-        ${a.isDefault ? '<span class="badge badge-new tag">Default</span>' : ''}
+      <div class="addr-card ${a.is_default ? 'default' : ''}">
+        ${a.is_default ? '<span class="badge badge-new tag">Default</span>' : ''}
         <b>${esc(a.label || 'Address')}</b>
         <p>${esc(a.address)}<br>${esc(a.city)}, ${esc(a.province)} ${esc(a.postal || '')}<br>${esc(prettyPhone(a.phone || ''))}</p>
         <div class="flex gap-8 wrap-flex">
           <button class="btn btn-sm btn-ghost" data-edit="${a.id}">Edit</button>
-          ${a.isDefault ? '' : `<button class="btn btn-sm btn-ghost" data-def="${a.id}">Make default</button>`}
+          ${a.is_default ? '' : `<button class="btn btn-sm btn-ghost" data-def="${a.id}">Make default</button>`}
           <button class="btn btn-sm btn-danger" data-del="${a.id}">${ICON.trash}</button>
         </div>
       </div>`).join('')}</div>`
@@ -520,15 +453,15 @@ function bindAddresses() {
   const add = $('#add-addr');
   if (add) add.onclick = () => addressModal(null);
   $$('[data-edit]').forEach(b => b.onclick = () => addressModal(Auth.addresses().find(a => a.id === b.dataset.edit)));
-  $$('[data-def]').forEach(b => b.onclick = () => {
-    Auth.saveAddress({ ...Auth.addresses().find(a => a.id === b.dataset.def), isDefault: true });
-    toast('Default address updated');
-    renderDashboard();
+  $$('[data-def]').forEach(b => b.onclick = async () => {
+    const a = Auth.addresses().find(x => x.id === b.dataset.def);
+    try { await Auth.saveAddress({ ...a, isDefault: true }); toast('Default address updated'); renderDashboard(); }
+    catch (e) { toast(e.message, 'err'); }
   });
   $$('.addr-card [data-del]').forEach(b => b.onclick = () => confirmBox('Delete address?', 'This address will be removed from your account.', () => {
-    Auth.deleteAddress(b.dataset.del);
-    toast('Address deleted');
-    renderDashboard();
+    Auth.deleteAddress(b.dataset.del)
+      .then(() => { toast('Address deleted'); renderDashboard(); })
+      .catch(e => toast(e.message, 'err'));
   }));
 }
 
@@ -551,7 +484,7 @@ function addressModal(addr) {
       <div class="field"><label>Postal code</label><input type="text" id="a-postal" value="${esc(a.postal || '')}" placeholder="46000"></div>
     </div>
     <div class="field"><label>Contact number</label><input type="tel" id="a-phone" value="${esc(prettyPhone(a.phone || u.phone))}" placeholder="03XX XXXXXXX"></div>
-    <label class="check" style="margin-bottom:20px"><input type="checkbox" id="a-default" ${a.isDefault ? 'checked' : ''}><span>Use as my default delivery address</span></label>
+    <label class="check" style="margin-bottom:20px"><input type="checkbox" id="a-default" ${a.is_default ? 'checked' : ''}><span>Use as my default delivery address</span></label>
     <div class="flex gap-12">
       <button class="btn btn-ghost" data-cancel>Cancel</button>
       <button class="btn btn-gold" style="flex:1" data-save>Save address</button>
@@ -573,10 +506,9 @@ function addressModal(addr) {
     if (addrOut.address.length < 6) return toast('Please enter the street address', 'err');
     if (!addrOut.city) return toast('Please enter the city', 'err');
     if (!addrOut.province) return toast('Please choose a province', 'err');
-    Auth.saveAddress(addrOut);
-    m.close();
-    toast('Address saved');
-    renderDashboard();
+    Auth.saveAddress(addrOut)
+      .then(() => { m.close(); toast('Address saved'); renderDashboard(); })
+      .catch(e => toast(e.message, 'err'));
   };
 }
 

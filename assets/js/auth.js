@@ -1,39 +1,73 @@
 /* ==========================================================================
-   G.GORGEOUS — accounts
+   G.GORGEOUS — accounts, backed by Supabase Auth
 
-   ⚠ DEMO AUTHENTICATION ⚠
-   Everything below runs in the browser and stores accounts in localStorage.
-   That is fine for a client preview but it is NOT real security:
-     · anyone can read the stored data with dev tools
-     · password hashing here does not protect against a determined attacker
-     · reset codes are shown on screen because a static site cannot send
-       an email or an SMS — that needs a server
+   Real accounts: they work on every device, and password-reset emails
+   actually arrive. Passwords are hashed server-side by Supabase and never
+   touch this code.
 
-   For production, swap AUTH_BACKEND for a real provider (Firebase Auth,
-   Supabase Auth, or your own API). Every screen in this site talks only to
-   the Auth.* methods below, so only this one file has to change.
+   Sign-in is by EMAIL only. Supabase phone sign-in needs a paid SMS
+   provider (Twilio), so the mobile number is kept on the profile for
+   delivery and contact rather than as a login method. Wiring SMS later is
+   a provider setting plus a small change in signIn().
+
+   The session is cached in memory so the rest of the site can keep asking
+   Auth.currentUser() synchronously. Auth.init() must be awaited once per
+   page before anything reads it — bootAuth() below does that.
    ========================================================================== */
 
-const AUTH_KEYS = {
-  USERS: 'gg.users',
-  SESSION: 'gg.session',
-  RESETS: 'gg.resets'
+const AuthState = {
+  session: null,
+  profile: null,     // row from public.profiles
+  addresses: [],
+  ready: false
 };
 
-const AUTH_BACKEND = 'demo';           // 'demo' | 'firebase' | 'supabase' | 'api'
-const SESSION_DAYS = 30;
-const RESET_CODE_MINUTES = 10;
-const MAX_SIGNIN_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 5;
+function mapUser() {
+  const s = AuthState.session;
+  if (!s || !s.user) return null;
+  const p = AuthState.profile || {};
+  return {
+    id: s.user.id,
+    email: s.user.email,
+    name: p.full_name || s.user.user_metadata?.full_name || '',
+    phone: p.phone || s.user.user_metadata?.phone || '',
+    role: p.role || 'customer',
+    emailVerified: !!s.user.email_confirmed_at,
+    phoneVerified: false,
+    createdAt: s.user.created_at,
+    lastLogin: s.user.last_sign_in_at,
+    addresses: AuthState.addresses
+  };
+}
 
-/* ---------- low level ---------- */
+async function loadProfile() {
+  if (!AuthState.session) { AuthState.profile = null; AuthState.addresses = []; return; }
+  const uid = AuthState.session.user.id;
+  const [prof, addr] = await Promise.all([
+    sb.from('profiles').select('id,full_name,phone,role,created_at').eq('id', uid).maybeSingle(),
+    sb.from('addresses').select('*').eq('user_id', uid).order('created_at')
+  ]);
+  AuthState.profile = prof.data || null;
+  AuthState.addresses = addr.data || [];
+}
 
-const getUsers  = () => read(AUTH_KEYS.USERS, []);
-const saveUsers = (u) => write(AUTH_KEYS.USERS, u);
+/* Turn Supabase's terse errors into something a customer can act on. */
+function friendlyAuthError(e) {
+  const m = (e && (e.message || e.error_description) || '').toLowerCase();
+  if (m.includes('invalid login credentials')) return 'That email or password is not correct';
+  if (m.includes('email not confirmed')) return 'Please confirm your email first — check your inbox for the link';
+  if (m.includes('user already registered') || m.includes('already been registered')) return 'An account already uses that email address';
+  if (m.includes('password should be at least')) return 'Password needs at least 8 characters';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — please wait a minute and try again';
+  if (m.includes('unable to validate email')) return 'Please enter a valid email address';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'Cannot reach the server — check your internet connection';
+  return (e && e.message) || 'Something went wrong, please try again';
+}
 
-function normEmail(v) { return String(v || '').trim().toLowerCase(); }
+/* ---------- validation shared with the forms ---------- */
 
-/* 03xx xxxxxxx / +923xxxxxxxxx / 923xxxxxxxxx → 923xxxxxxxxx */
+const isEmail = (v) => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(v || '').trim());
+
 function normPhone(v) {
   let d = String(v || '').replace(/[^\d+]/g, '');
   if (d.startsWith('+')) d = d.slice(1);
@@ -43,10 +77,8 @@ function normPhone(v) {
 }
 function prettyPhone(v) {
   const d = normPhone(v);
-  return d.length === 12 ? '0' + d.slice(2, 5) + ' ' + d.slice(5) : v;
+  return d.length === 12 ? '0' + d.slice(2, 5) + ' ' + d.slice(5) : (v || '');
 }
-
-const isEmail = (v) => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(v).trim());
 const isPhone = (v) => /^923\d{9}$/.test(normPhone(v));
 
 function passwordProblems(pw) {
@@ -69,345 +101,266 @@ function passwordStrength(pw) {
   return { score: Math.min(5, s), label: labels[Math.min(5, s)] };
 }
 
-function randomId(prefix) {
-  return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
-
-function randomCode() {
-  if (window.crypto && crypto.getRandomValues) {
-    const a = new Uint32Array(1);
-    crypto.getRandomValues(a);
-    return String(a[0] % 1000000).padStart(6, '0');
-  }
-  return String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
-}
-
-/* SHA-256 where available, with a plain fallback so the demo still runs
-   in contexts without Web Crypto. Neither is production-grade — a real
-   backend must use bcrypt/argon2 server-side. */
-async function hashPassword(password, salt) {
-  const text = salt + '::' + password;
-  if (window.crypto && crypto.subtle) {
-    try {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-    } catch (e) { /* falls through */ }
-  }
-  let h = 0;
-  for (let i = 0; i < text.length; i++) { h = ((h << 5) - h + text.charCodeAt(i)) | 0; }
-  return 'fb' + (h >>> 0).toString(16);
-}
-
-/* ---------- session ---------- */
-
-function readSession() {
-  const s = read(AUTH_KEYS.SESSION, null);
-  if (!s) return null;
-  if (s.expires && Date.now() > s.expires) { localStorage.removeItem(AUTH_KEYS.SESSION); return null; }
-  return s;
-}
-
-function startSession(userId, remember) {
-  const days = remember ? SESSION_DAYS : 1;
-  write(AUTH_KEYS.SESSION, {
-    userId,
-    token: randomId('sess'),
-    started: Date.now(),
-    expires: Date.now() + days * 864e5
-  });
-  document.dispatchEvent(new CustomEvent('gg:auth'));
-}
-
-function publicUser(u) {
-  if (!u) return null;
-  const { passwordHash, salt, attempts, lockedUntil, ...safe } = u;
-  return safe;
-}
-
 /* ==========================================================================
-   Public API — every screen uses only these
+   Public API
    ========================================================================== */
 
 const Auth = {
 
-  backend: AUTH_BACKEND,
-  isDemo: AUTH_BACKEND === 'demo',
+  isDemo: false,
+  available: () => !!sb,
 
-  currentUser() {
-    const s = readSession();
-    if (!s) return null;
-    return publicUser(getUsers().find(u => u.id === s.userId));
+  async init() {
+    if (AuthState.ready || !sb) { AuthState.ready = true; return; }
+    const { data } = await sb.auth.getSession();
+    AuthState.session = data.session || null;
+    await loadProfile();
+    AuthState.ready = true;
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      AuthState.session = session || null;
+      await loadProfile();
+      document.dispatchEvent(new CustomEvent('gg:auth', { detail: { event } }));
+    });
   },
 
-  isSignedIn() { return !!this.currentUser(); },
+  currentUser() { return mapUser(); },
+  isSignedIn() { return !!AuthState.session; },
+  isAdmin() { return (AuthState.profile || {}).role === 'admin'; },
 
-  findBy(identifier) {
-    const users = getUsers();
-    const id = String(identifier || '').trim();
-    if (isEmail(id)) return users.find(u => u.email === normEmail(id));
-    if (isPhone(id)) return users.find(u => u.phone === normPhone(id));
-    return null;
+  /* Supabase puts a recovery token in the URL fragment when someone
+     follows a reset link. detectSessionInUrl consumes it, so we look for
+     the marker to know the page should show "set a new password". */
+  isRecovery() {
+    return /(^|[#&])type=recovery/.test(location.hash) ||
+           sessionStorage.getItem('gg.recovery') === '1';
   },
+  markRecovery() { sessionStorage.setItem('gg.recovery', '1'); },
+  clearRecovery() { sessionStorage.removeItem('gg.recovery'); },
 
   async signUp({ name, email, phone, password }) {
     name = String(name || '').trim();
-    const em = normEmail(email);
+    const em = String(email || '').trim().toLowerCase();
     const ph = normPhone(phone);
 
     if (name.length < 3) throw new Error('Please enter your full name');
     if (!isEmail(em)) throw new Error('Please enter a valid email address');
     if (!isPhone(ph)) throw new Error('Please enter a valid Pakistani mobile number');
-    const pwIssues = passwordProblems(password);
-    if (pwIssues.length) throw new Error('Password needs ' + pwIssues.join(', '));
+    const issues = passwordProblems(password);
+    if (issues.length) throw new Error('Password needs ' + issues.join(', '));
 
-    const users = getUsers();
-    if (users.some(u => u.email === em)) throw new Error('An account already uses that email address');
-    if (users.some(u => u.phone === ph)) throw new Error('An account already uses that mobile number');
-
-    const salt = randomId('s');
-    const user = {
-      id: randomId('u'),
-      name, email: em, phone: ph,
-      passwordHash: await hashPassword(password, salt),
-      salt,
-      addresses: [],
-      createdAt: new Date().toISOString(),
-      emailVerified: false,
-      phoneVerified: false
-    };
-    users.push(user);
-    saveUsers(users);
-    startSession(user.id, true);
-    return publicUser(user);
-  },
-
-  async signIn({ identifier, password, remember }) {
-    const users = getUsers();
-    const idx = users.findIndex(u =>
-      (isEmail(identifier) && u.email === normEmail(identifier)) ||
-      (isPhone(identifier) && u.phone === normPhone(identifier)));
-
-    if (idx === -1) throw new Error('No account found with that email or mobile number');
-    const user = users[idx];
-
-    if (user.lockedUntil && Date.now() < user.lockedUntil) {
-      const mins = Math.ceil((user.lockedUntil - Date.now()) / 60000);
-      throw new Error(`Too many attempts. Try again in ${mins} minute${mins > 1 ? 's' : ''}`);
-    }
-
-    const hash = await hashPassword(password, user.salt);
-    if (hash !== user.passwordHash) {
-      user.attempts = (user.attempts || 0) + 1;
-      if (user.attempts >= MAX_SIGNIN_ATTEMPTS) {
-        user.lockedUntil = Date.now() + LOCKOUT_MINUTES * 60000;
-        user.attempts = 0;
-        saveUsers(users);
-        throw new Error(`Too many attempts. Account locked for ${LOCKOUT_MINUTES} minutes`);
+    const { data, error } = await sb.auth.signUp({
+      email: em,
+      password,
+      options: {
+        data: { full_name: name, phone: ph },
+        emailRedirectTo: location.origin + '/account.html'
       }
-      saveUsers(users);
-      const left = MAX_SIGNIN_ATTEMPTS - user.attempts;
-      throw new Error(`Incorrect password — ${left} attempt${left > 1 ? 's' : ''} left`);
-    }
+    });
+    if (error) throw new Error(friendlyAuthError(error));
 
-    user.attempts = 0;
-    user.lockedUntil = null;
-    user.lastLogin = new Date().toISOString();
-    saveUsers(users);
-    startSession(user.id, remember);
-    return publicUser(user);
+    // With email confirmation on, there is no session until they confirm.
+    const needsConfirmation = !data.session;
+    if (data.session) {
+      AuthState.session = data.session;
+      await loadProfile();
+      document.dispatchEvent(new CustomEvent('gg:auth'));
+    }
+    return { needsConfirmation, email: em };
   },
 
-  signOut() {
-    localStorage.removeItem(AUTH_KEYS.SESSION);
+  async signIn({ identifier, password }) {
+    const em = String(identifier || '').trim().toLowerCase();
+    if (!isEmail(em)) {
+      throw new Error(isPhone(em)
+        ? 'Please sign in with your email address — mobile sign-in is not enabled yet'
+        : 'Please enter a valid email address');
+    }
+    const { data, error } = await sb.auth.signInWithPassword({ email: em, password });
+    if (error) throw new Error(friendlyAuthError(error));
+    AuthState.session = data.session;
+    await loadProfile();
+    document.dispatchEvent(new CustomEvent('gg:auth'));
+    return mapUser();
+  },
+
+  async signOut() {
+    await sb.auth.signOut();
+    AuthState.session = null;
+    AuthState.profile = null;
+    AuthState.addresses = [];
+    this.clearRecovery();
     document.dispatchEvent(new CustomEvent('gg:auth'));
   },
 
   async updateProfile(patch) {
-    const s = readSession();
-    if (!s) throw new Error('You are not signed in');
-    const users = getUsers();
-    const user = users.find(u => u.id === s.userId);
-    if (!user) throw new Error('Account not found');
+    if (!AuthState.session) throw new Error('You are not signed in');
+    const uid = AuthState.session.user.id;
+    const row = {};
 
     if (patch.name !== undefined) {
       if (String(patch.name).trim().length < 3) throw new Error('Please enter your full name');
-      user.name = String(patch.name).trim();
-    }
-    if (patch.email !== undefined) {
-      const em = normEmail(patch.email);
-      if (!isEmail(em)) throw new Error('Please enter a valid email address');
-      if (users.some(u => u.email === em && u.id !== user.id)) throw new Error('Another account uses that email');
-      if (em !== user.email) user.emailVerified = false;
-      user.email = em;
+      row.full_name = String(patch.name).trim();
     }
     if (patch.phone !== undefined) {
-      const ph = normPhone(patch.phone);
-      if (!isPhone(ph)) throw new Error('Please enter a valid Pakistani mobile number');
-      if (users.some(u => u.phone === ph && u.id !== user.id)) throw new Error('Another account uses that number');
-      if (ph !== user.phone) user.phoneVerified = false;
-      user.phone = ph;
+      if (!isPhone(patch.phone)) throw new Error('Please enter a valid Pakistani mobile number');
+      row.phone = normPhone(patch.phone);
     }
-    saveUsers(users);
+    if (Object.keys(row).length) {
+      const { error } = await sb.from('profiles').update(row).eq('id', uid);
+      if (error) throw new Error(error.message);
+    }
+    if (patch.email !== undefined && patch.email.trim().toLowerCase() !== AuthState.session.user.email) {
+      if (!isEmail(patch.email)) throw new Error('Please enter a valid email address');
+      const { error } = await sb.auth.updateUser({ email: patch.email.trim().toLowerCase() });
+      if (error) throw new Error(friendlyAuthError(error));
+      await loadProfile();
+      document.dispatchEvent(new CustomEvent('gg:auth'));
+      return { emailChangePending: true };
+    }
+    await loadProfile();
     document.dispatchEvent(new CustomEvent('gg:auth'));
-    return publicUser(user);
+    return {};
   },
 
   async changePassword(currentPassword, newPassword) {
-    const s = readSession();
-    if (!s) throw new Error('You are not signed in');
-    const users = getUsers();
-    const user = users.find(u => u.id === s.userId);
-    if (!user) throw new Error('Account not found');
-
-    if (await hashPassword(currentPassword, user.salt) !== user.passwordHash) {
-      throw new Error('Your current password is not correct');
-    }
+    if (!AuthState.session) throw new Error('You are not signed in');
     const issues = passwordProblems(newPassword);
     if (issues.length) throw new Error('New password needs ' + issues.join(', '));
 
-    user.salt = randomId('s');
-    user.passwordHash = await hashPassword(newPassword, user.salt);
-    saveUsers(users);
+    // Supabase does not verify the old password on update, so prove it by
+    // re-authenticating first — otherwise a borrowed open laptop is enough
+    // to change someone's password.
+    const { error: reauth } = await sb.auth.signInWithPassword({
+      email: AuthState.session.user.email,
+      password: currentPassword
+    });
+    if (reauth) throw new Error('Your current password is not correct');
+
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(friendlyAuthError(error));
     return true;
   },
 
-  /* ---------- password recovery ---------- */
+  /* ---------- password recovery: a real email ---------- */
 
-  /* Step 1 — request a code by email or SMS.
-     DEMO: the code is returned so the page can display it. A real backend
-     returns nothing and delivers the code out of band. */
-  requestReset(identifier) {
-    const user = this.findBy(identifier);
-    const channel = isEmail(identifier) ? 'email' : 'sms';
+  async requestReset(email) {
+    const em = String(email || '').trim().toLowerCase();
+    if (!isEmail(em)) throw new Error('Please enter a valid email address');
 
-    // Always behave the same way whether or not the account exists, so the
-    // form cannot be used to discover which emails are registered.
-    if (!user) return { channel, sent: true, code: null, unknown: true };
-
-    const resets = read(AUTH_KEYS.RESETS, []).filter(r => r.expires > Date.now());
-    const entry = {
-      id: randomId('rst'),
-      userId: user.id,
-      channel,
-      destination: channel === 'email' ? user.email : user.phone,
-      code: randomCode(),
-      expires: Date.now() + RESET_CODE_MINUTES * 60000,
-      used: false
-    };
-    resets.push(entry);
-    write(AUTH_KEYS.RESETS, resets);
-
-    return {
-      channel,
-      sent: true,
-      destination: channel === 'email' ? maskEmail(user.email) : maskPhone(user.phone),
-      code: this.isDemo ? entry.code : null,
-      expiresInMinutes: RESET_CODE_MINUTES
-    };
+    const { error } = await sb.auth.resetPasswordForEmail(em, {
+      redirectTo: location.origin + '/account.html'
+    });
+    // Never reveal whether the address is registered.
+    if (error && !/rate limit|too many/i.test(error.message || '')) {
+      console.warn('reset error', error.message);
+    }
+    if (error && /rate limit|too many/i.test(error.message || '')) {
+      throw new Error('Too many requests — please wait a minute and try again');
+    }
+    return { sent: true, email: em };
   },
 
-  /* Step 2 — check the code, hand back a short-lived token */
-  verifyReset(identifier, code) {
-    const user = this.findBy(identifier);
-    if (!user) throw new Error('That code is not valid');
-
-    const resets = read(AUTH_KEYS.RESETS, []);
-    const entry = resets.find(r => r.userId === user.id && r.code === String(code).trim() &&
-      !r.used && r.expires > Date.now());
-    if (!entry) throw new Error('That code is not valid or has expired');
-
-    entry.used = true;
-    entry.token = randomId('tok');
-    entry.tokenExpires = Date.now() + 10 * 60000;
-    write(AUTH_KEYS.RESETS, resets);
-    return entry.token;
-  },
-
-  /* Step 3 — set the new password */
-  async resetPassword(token, newPassword) {
-    const resets = read(AUTH_KEYS.RESETS, []);
-    const entry = resets.find(r => r.token === token && r.tokenExpires > Date.now());
-    if (!entry) throw new Error('This reset link has expired — please start again');
-
+  async completeRecovery(newPassword) {
     const issues = passwordProblems(newPassword);
     if (issues.length) throw new Error('Password needs ' + issues.join(', '));
-
-    const users = getUsers();
-    const user = users.find(u => u.id === entry.userId);
-    if (!user) throw new Error('Account not found');
-
-    user.salt = randomId('s');
-    user.passwordHash = await hashPassword(newPassword, user.salt);
-    user.attempts = 0;
-    user.lockedUntil = null;
-    saveUsers(users);
-
-    write(AUTH_KEYS.RESETS, resets.filter(r => r.token !== token));
-    return publicUser(user);
+    const { error } = await sb.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(friendlyAuthError(error));
+    this.clearRecovery();
+    await loadProfile();
+    document.dispatchEvent(new CustomEvent('gg:auth'));
+    return mapUser();
   },
 
   /* ---------- address book ---------- */
 
-  addresses() {
-    const u = this.currentUser();
-    return u ? (u.addresses || []) : [];
-  },
-
-  saveAddress(addr) {
-    const s = readSession();
-    if (!s) throw new Error('You are not signed in');
-    const users = getUsers();
-    const user = users.find(u => u.id === s.userId);
-    user.addresses = user.addresses || [];
-
-    if (addr.id) {
-      const i = user.addresses.findIndex(a => a.id === addr.id);
-      if (i > -1) user.addresses[i] = { ...user.addresses[i], ...addr };
-    } else {
-      addr.id = randomId('addr');
-      if (!user.addresses.length) addr.isDefault = true;
-      user.addresses.push(addr);
-    }
-    if (addr.isDefault) user.addresses.forEach(a => { a.isDefault = a.id === addr.id; });
-    saveUsers(users);
-    document.dispatchEvent(new CustomEvent('gg:auth'));
-    return user.addresses;
-  },
-
-  deleteAddress(id) {
-    const s = readSession();
-    if (!s) return;
-    const users = getUsers();
-    const user = users.find(u => u.id === s.userId);
-    user.addresses = (user.addresses || []).filter(a => a.id !== id);
-    if (user.addresses.length && !user.addresses.some(a => a.isDefault)) user.addresses[0].isDefault = true;
-    saveUsers(users);
-    document.dispatchEvent(new CustomEvent('gg:auth'));
-  },
-
+  addresses() { return AuthState.addresses || []; },
   defaultAddress() {
-    const list = this.addresses();
-    return list.find(a => a.isDefault) || list[0] || null;
+    const l = this.addresses();
+    return l.find(a => a.is_default) || l[0] || null;
   },
 
-  /* ---------- orders belonging to the signed-in customer ---------- */
+  async saveAddress(addr) {
+    if (!AuthState.session) throw new Error('You are not signed in');
+    const uid = AuthState.session.user.id;
+    const row = {
+      user_id: uid,
+      label: addr.label || 'Address',
+      address: addr.address, city: addr.city, province: addr.province,
+      postal: addr.postal || null, phone: normPhone(addr.phone) || null,
+      is_default: !!addr.isDefault
+    };
+    if (addr.id) {
+      const { error } = await sb.from('addresses').update(row).eq('id', addr.id);
+      if (error) throw new Error(error.message);
+    } else {
+      if (!this.addresses().length) row.is_default = true;
+      const { error } = await sb.from('addresses').insert(row);
+      if (error) throw new Error(error.message);
+    }
+    if (row.is_default) {
+      await sb.from('addresses').update({ is_default: false })
+        .eq('user_id', uid).neq('id', addr.id || '00000000-0000-0000-0000-000000000000');
+      if (addr.id) await sb.from('addresses').update({ is_default: true }).eq('id', addr.id);
+    }
+    await loadProfile();
+    document.dispatchEvent(new CustomEvent('gg:auth'));
+    return this.addresses();
+  },
 
-  myOrders() {
-    const u = this.currentUser();
-    if (!u) return [];
-    return getOrders().filter(o =>
-      o.userId === u.id ||
-      (!o.userId && o.customer && normEmail(o.customer.email) === u.email));
+  async deleteAddress(id) {
+    const { error } = await sb.from('addresses').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    const left = this.addresses().filter(a => a.id !== id);
+    if (left.length && !left.some(a => a.is_default)) {
+      await sb.from('addresses').update({ is_default: true }).eq('id', left[0].id);
+    }
+    await loadProfile();
+    document.dispatchEvent(new CustomEvent('gg:auth'));
+  },
+
+  /* ---------- this customer's orders ---------- */
+
+  async myOrders() {
+    if (!AuthState.session) return [];
+    const { data, error } = await sb
+      .from('orders')
+      .select('*, order_items(*)')
+      .order('created_at', { ascending: false });
+    if (error) { console.error(error); return []; }
+    return (data || []).map(orderRowToOrder);
   }
 };
 
-function maskEmail(e) {
-  const [a, b] = String(e).split('@');
-  if (!b) return e;
-  const shown = a.slice(0, Math.min(2, a.length));
-  return shown + '•'.repeat(Math.max(3, a.length - shown.length)) + '@' + b;
+/* Map a database order onto the shape the account and admin screens use. */
+function orderRowToOrder(o) {
+  return {
+    id: o.order_no,
+    dbId: o.id,
+    date: o.created_at,
+    status: o.status,
+    userId: o.user_id,
+    customer: {
+      name: o.customer_name, email: o.customer_email, phone: o.customer_phone,
+      address: o.address, city: o.city, province: o.province,
+      postal: o.postal || '', notes: o.notes || ''
+    },
+    payment: {
+      method: o.payment_method, label: o.payment_method,
+      status: o.payment_status, last4: '', wallet: ''
+    },
+    items: (o.order_items || []).map(i => ({
+      productId: i.product_id, name: i.name, sku: i.sku, size: i.size,
+      color: i.color, qty: i.qty, unit: Number(i.unit_price), lineTotal: Number(i.line_total)
+    })),
+    totals: {
+      subtotal: Number(o.subtotal), discount: Number(o.discount),
+      promoCode: o.promo_code, shipping: Number(o.shipping), total: Number(o.total)
+    }
+  };
 }
-function maskPhone(p) {
-  const d = normPhone(p);
-  return d.length === 12 ? '0' + d.slice(2, 5) + ' •••• ' + d.slice(-3) : p;
+
+/* Every page calls this once, before rendering. */
+async function bootAuth() {
+  if (sb) await Auth.init();
 }
