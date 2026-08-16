@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (p.get('q')) state.q = p.get('q');
 
   mountChrome(p.get('cat') || 'home');
+  buildIntro();
   buildFeatured();
   buildAssurances();
   buildVisit();
@@ -37,6 +38,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /* ---------- static blocks ---------- */
+
+function buildIntro() {
+  const products = getProducts();
+  const styles = $('#stat-styles'), cats = $('#stat-cats');
+  if (styles) styles.textContent = products.length;
+  if (cats) cats.textContent = CATEGORIES.length;
+
+  const menu = $('#cat-drop-menu');
+  if (!menu) return;
+  menu.innerHTML = CATEGORIES.map(c => {
+    const n = products.filter(p => p.category === c.slug).length;
+    return `<a href="index.html?cat=${c.slug}">
+      <span class="ic">${CAT_ICON[c.art]}</span>
+      <span><b>${c.name}</b><small>${n} ${n === 1 ? 'style' : 'styles'}</small></span></a>`;
+  }).join('');
+
+  const wrap = $('#cat-drop'), btn = $('#cat-drop-btn');
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = wrap.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', () => {
+    wrap.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  });
+}
 
 function buildFeatured() {
   const list = getProducts().filter(p => p.featured).slice(0, 4);
