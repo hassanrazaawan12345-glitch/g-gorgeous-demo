@@ -47,9 +47,9 @@ Every suit is pressed, checked and packed in a G.Gorgeous garment bag. Free mino
     (pid, '46', 2);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/3p-charcoal-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/3p-charcoal-2.jpg', 'image', 1),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/detail-tweed.jpg', 'image', 2);
+    (pid, '/assets/img/products/3p-charcoal-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/3p-charcoal-2.jpg', 'image', 1),
+    (pid, '/assets/img/products/detail-tweed.jpg', 'image', 2);
 end $$;
 
 -- 2. Windowpane Navy Three Piece
@@ -79,9 +79,9 @@ Comes with a matching waistcoat and a plain-front trouser. We can add a shawl la
     (pid, '46', 1);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/3p-check-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/3p-check-2.jpg', 'image', 1),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/detail-buttons.jpg', 'image', 2);
+    (pid, '/assets/img/products/3p-check-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/3p-check-2.jpg', 'image', 1),
+    (pid, '/assets/img/products/detail-buttons.jpg', 'image', 2);
 end $$;
 
 -- 3. Silver Grey Ceremonial Three Piece
@@ -111,9 +111,9 @@ The waistcoat is cut with a shallow V to show more of the shirt and tie. Pairs p
     (pid, '46', 1);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/3p-silver-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-ivory-1.jpg', 'image', 1),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/detail-tweed.jpg', 'image', 2);
+    (pid, '/assets/img/products/3p-silver-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/2p-ivory-1.jpg', 'image', 1),
+    (pid, '/assets/img/products/detail-tweed.jpg', 'image', 2);
 end $$;
 
 -- 4. Royal Blue Two Piece
@@ -143,9 +143,9 @@ Two-button front, double vent, and a slightly tapered trouser that breaks cleanl
     (pid, '46', 3);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-royal-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-royal-2.jpg', 'image', 1),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/detail-buttons.jpg', 'image', 2);
+    (pid, '/assets/img/products/2p-royal-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/2p-royal-2.jpg', 'image', 1),
+    (pid, '/assets/img/products/detail-buttons.jpg', 'image', 2);
 end $$;
 
 -- 5. Jet Black Tuxedo Two Piece
@@ -174,9 +174,9 @@ Worn with a black bow tie and a white evening shirt as shown, or dressed down wi
     (pid, '46', 2);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-black-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-black-2.jpg', 'image', 1),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/detail-buttons.jpg', 'image', 2);
+    (pid, '/assets/img/products/2p-black-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/2p-black-2.jpg', 'image', 1),
+    (pid, '/assets/img/products/detail-buttons.jpg', 'image', 2);
 end $$;
 
 -- 6. Midnight Navy Two Piece
@@ -206,9 +206,9 @@ Notch lapel, two-button front, double vent. The trouser is flat-front with a sli
     (pid, '46', 2);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-navy-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-navy-2.jpg', 'image', 1),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/detail-buttons.jpg', 'image', 2);
+    (pid, '/assets/img/products/2p-navy-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/2p-navy-2.jpg', 'image', 1),
+    (pid, '/assets/img/products/detail-buttons.jpg', 'image', 2);
 end $$;
 
 -- 7. Ivory Double-Breasted Two Piece
@@ -238,8 +238,8 @@ Because of the colour we recommend the dry-clean-only route and a garment bag be
     (pid, '46', 1);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-ivory-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/3p-silver-1.jpg', 'image', 1);
+    (pid, '/assets/img/products/2p-ivory-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/3p-silver-1.jpg', 'image', 1);
 end $$;
 
 -- 8. Deep Olive Two Piece
@@ -269,8 +269,8 @@ Soft-construction shoulder, single vent, patch-style hip pockets. This is the mo
     (pid, '46', 1);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-olive-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/detail-tweed.jpg', 'image', 1);
+    (pid, '/assets/img/products/2p-olive-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/detail-tweed.jpg', 'image', 1);
 end $$;
 
 -- 9. Charcoal Formal Trouser
@@ -301,8 +301,8 @@ The inner waistband has a grip lining so shirts stay tucked through a full day. 
     (pid, '40', 3);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/dp-charcoal-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/2p-navy-2.jpg', 'image', 1);
+    (pid, '/assets/img/products/dp-charcoal-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/2p-navy-2.jpg', 'image', 1);
 end $$;
 
 -- 10. Ivory Summer Trouser
@@ -332,8 +332,8 @@ Opaque enough to wear with confidence — we line the seat and front panels. Bes
     (pid, '40', 1);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/dp-ivory-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/dp-ivory-2.jpg', 'image', 1);
+    (pid, '/assets/img/products/dp-ivory-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/dp-ivory-2.jpg', 'image', 1);
 end $$;
 
 -- 11. Sand Chino-Formal Trouser
@@ -363,7 +363,7 @@ Goes with everything from a white dress shirt to a knit polo, and it is the trou
     (pid, '40', 1);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/dp-sand-1.jpg', 'image', 0);
+    (pid, '/assets/img/products/dp-sand-1.jpg', 'image', 0);
 end $$;
 
 -- 12. Optic White Formal Shirt
@@ -392,9 +392,9 @@ Single-button barrel cuff, chest pocket, and a slightly tapered body that tucks 
     (pid, 'XXL', 5);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-white-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-white-3.jpg', 'image', 1),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-white-2.jpg', 'image', 2);
+    (pid, '/assets/img/products/ds-white-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/ds-white-3.jpg', 'image', 1),
+    (pid, '/assets/img/products/ds-white-2.jpg', 'image', 2);
 end $$;
 
 -- 13. Cream Oxford Shirt
@@ -423,8 +423,8 @@ A warmer neutral for men who find white too harsh. Button-down collar option ava
     (pid, 'XXL', 4);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-cream-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-white-2.jpg', 'image', 1);
+    (pid, '/assets/img/products/ds-cream-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/ds-white-2.jpg', 'image', 1);
 end $$;
 
 -- 14. Sage Cotton Shirt
@@ -453,8 +453,8 @@ Cutaway collar, single-button cuff, no chest pocket for a cleaner front line.', 
     (pid, 'XXL', 3);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-sage-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-white-3.jpg', 'image', 1);
+    (pid, '/assets/img/products/ds-sage-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/ds-white-3.jpg', 'image', 1);
 end $$;
 
 -- 15. Tan Poplin Shirt
@@ -483,8 +483,8 @@ Standard point collar and a barrel cuff, cut a touch longer in the body so it st
     (pid, 'XXL', 3);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-tan-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ds-white-2.jpg', 'image', 1);
+    (pid, '/assets/img/products/ds-tan-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/ds-white-2.jpg', 'image', 1);
 end $$;
 
 -- 16. Violet Stripe Silk Tie
@@ -509,8 +509,8 @@ The stripe is woven rather than printed, so it keeps its depth after years of we
     (pid, 'One Size', 24);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-violet-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-violet-2.jpg', 'image', 1);
+    (pid, '/assets/img/products/ti-violet-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/ti-violet-2.jpg', 'image', 1);
 end $$;
 
 -- 17. Sky Stripe Silk Tie
@@ -535,8 +535,8 @@ Worn here against our Midnight Navy two piece. Also works beautifully with a gre
     (pid, 'One Size', 20);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-sky-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-sky-2.jpg', 'image', 1);
+    (pid, '/assets/img/products/ti-sky-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/ti-sky-2.jpg', 'image', 1);
 end $$;
 
 -- 18. Champagne Satin Tie
@@ -561,8 +561,8 @@ Available with a matching pocket square — ask at the shop or add a note to you
     (pid, 'One Size', 18);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-champagne-1.jpg', 'image', 0),
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-champagne-2.jpg', 'image', 1);
+    (pid, '/assets/img/products/ti-champagne-1.jpg', 'image', 0),
+    (pid, '/assets/img/products/ti-champagne-2.jpg', 'image', 1);
 end $$;
 
 -- 19. Classic Black Silk Tie
@@ -587,7 +587,7 @@ Tie a simple four-in-hand — the interlining does the rest.', 1700, 1450, 'Matt
     (pid, 'One Size', 30);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-black-1.jpg', 'image', 0);
+    (pid, '/assets/img/products/ti-black-1.jpg', 'image', 0);
 end $$;
 
 -- 20. Maroon Silk Bow Tie
@@ -612,7 +612,7 @@ Maroon is the single most versatile bow colour we sell — it works against char
     (pid, 'One Size', 22);
 
   insert into public.product_media (product_id, url, kind, sort) values
-    (pid, 'https://g-gorgeous.pages.dev/assets/img/products/ti-maroon-1.jpg', 'image', 0);
+    (pid, '/assets/img/products/ti-maroon-1.jpg', 'image', 0);
 end $$;
 
 -- ---------------------------------------------------------------- reviews
