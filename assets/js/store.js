@@ -63,7 +63,17 @@ function resetDemoData() {
 
 /* ---------- products ---------- */
 
-const getProducts   = () => read(DB.PRODUCTS, []);
+/* The bundled copy in browser storage — the offline fallback. */
+const localProducts = () => read(DB.PRODUCTS, []);
+
+/* Live database first, bundled copy second. Every screen calls this, so
+   pointing it at the cache in db.js switched the whole site over to
+   Supabase without touching the pages themselves. */
+const getProducts = () =>
+  (typeof DBCache !== 'undefined' && DBCache.source === 'supabase' && DBCache.products)
+    ? DBCache.products
+    : localProducts();
+
 const saveProducts  = (list) => write(DB.PRODUCTS, list);
 const productById   = (id) => getProducts().find(p => p.id === id);
 
@@ -107,7 +117,13 @@ const categoryName = (slug) => (CATEGORIES.find(c => c.slug === slug) || {}).nam
 
 /* ---------- reviews ---------- */
 
-const getReviews = () => read(DB.REVIEWS, []);
+const localReviews = () => read(DB.REVIEWS, []);
+
+const getReviews = () =>
+  (typeof DBCache !== 'undefined' && DBCache.source === 'supabase' && DBCache.reviews)
+    ? DBCache.reviews
+    : localReviews();
+
 const reviewsFor  = (id) => getReviews().filter(r => r.productId === id)
   .sort((a, b) => new Date(b.date) - new Date(a.date));
 

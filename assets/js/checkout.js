@@ -3,7 +3,8 @@
    Demo only: no card data leaves the browser and nothing is charged.
    ========================================================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadCatalogue();
   mountChrome('cart');
 
   const last = sessionStorage.getItem('gg.lastOrder');

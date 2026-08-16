@@ -11,7 +11,8 @@ let panel = 'overview';
 
 const nextUrl = () => params().get('next') || '';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadCatalogue();
   mountChrome('account');
   if (params().get('view') === 'signup') view = 'signup';
   render();

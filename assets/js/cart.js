@@ -2,7 +2,8 @@
    G.GORGEOUS — cart page
    ========================================================================== */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadCatalogue();
   mountChrome('cart');
   render();
   suggestions();

@@ -17,7 +17,8 @@ const state = {
   shown: PAGE_SIZE
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadCatalogue();
   const p = params();
   if (p.get('cat')) state.cats.add(p.get('cat'));
   if (p.get('q')) state.q = p.get('q');

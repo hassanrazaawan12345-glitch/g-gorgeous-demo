@@ -6,7 +6,8 @@ let P = null;
 let media = [];
 let sel = { color: '', size: '', qty: 1, index: 0 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadCatalogue();
   const id = params().get('id');
   P = productById(id);
 

@@ -14,7 +14,8 @@ const NAV = [
 let draft = null;          // product being edited
 let productSearch = '';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadCatalogue();
   if (sessionStorage.getItem(DB.ADMIN) === 'in') mountAdmin();
   else renderLogin();
   window.addEventListener('hashchange', () => {
