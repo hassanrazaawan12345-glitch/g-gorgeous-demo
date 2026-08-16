@@ -128,3 +128,121 @@ async function bootPage(render) {
     console.warn('Running on the bundled catalogue — database unreachable.');
   }
 }
+
+/* ==========================================================================
+   Admin writes.
+
+   Every call here is allowed only because the signed-in profile has
+   role = 'admin'. The Row Level Security policies do the enforcing, so a
+   customer who called these functions from the console would simply be
+   refused by the database — the check is not in this file.
+   ========================================================================== */
+
+const AdminDB = {
+
+  /* Create or update a product together with its colours, sizes and media.
+     Children are replaced wholesale: simpler and cannot drift out of sync
+     with what the form shows. */
+  async saveProduct(draft) {
+    const row = {
+      sku: draft.sku || null,
+      name: draft.name,
+      category_slug: draft.category,
+      description: draft.description || null,
+      details: draft.details || null,
+      price: draft.price,
+      sale_price: draft.salePrice,
+      fabric: draft.fabric || null, fit: draft.fit || null,
+      lining: draft.lining || null, care: draft.care || null,
+      origin: draft.origin || null,
+      featured: !!draft.featured,
+      active: draft.active !== false
+    };
+
+    let id = draft.dbId || (isUuid(draft.id) ? draft.id : null);
+
+    if (id) {
+      const { error } = await sb.from('products').update(row).eq('id', id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { data, error } = await sb.from('products').insert(row).select('id').single();
+      if (error) throw new Error(error.message);
+      id = data.id;
+    }
+
+    await Promise.all([
+      sb.from('product_colors').delete().eq('product_id', id),
+      sb.from('product_sizes').delete().eq('product_id', id),
+      sb.from('product_media').delete().eq('product_id', id)
+    ]);
+
+    const colors = (draft.colors || []).map((c, i) => ({ product_id: id, name: c.name, hex: c.hex, sort: i }));
+    const sizes  = (draft.sizes  || []).map(s => ({ product_id: id, size: s.size, qty: Math.max(0, +s.qty || 0) }));
+    const media  = (draft.images || []).map((u, i) => ({ product_id: id, url: u, kind: 'image', sort: i }));
+    if (draft.video) media.push({ product_id: id, url: draft.video, kind: 'video', sort: 99 });
+
+    for (const [table, rows] of [['product_colors', colors], ['product_sizes', sizes], ['product_media', media]]) {
+      if (!rows.length) continue;
+      const { error } = await sb.from(table).insert(rows);
+      if (error) throw new Error(`${table}: ${error.message}`);
+    }
+
+    DBCache.loaded = false;      // next page load picks up the change
+    return id;
+  },
+
+  async deleteProduct(id) {
+    const { error } = await sb.from('products').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    DBCache.loaded = false;
+  },
+
+  /* Compress in the browser first. A phone photo is 3–5 MB; this brings it
+     to roughly 100 KB, which is the difference between the free storage
+     tier holding a few hundred photos and holding thousands. */
+  async uploadImage(file) {
+    const dataUrl = await compressImage(file, 1400, 0.78);
+    const blob = await (await fetch(dataUrl)).blob();
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+
+    const { error } = await sb.storage.from('product-images').upload(name, blob, {
+      contentType: 'image/jpeg',
+      cacheControl: String(MEDIA_CACHE_SECONDS),   // one year — see store.js
+      upsert: false
+    });
+    if (error) throw new Error(error.message);
+
+    return sb.storage.from('product-images').getPublicUrl(name).data.publicUrl;
+  },
+
+  async orders() {
+    const { data, error } = await sb.from('orders')
+      .select('*, order_items(*)').order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []).map(orderRowToOrder);
+  },
+
+  async setOrderStatus(orderNo, status) {
+    const { error } = await sb.from('orders').update({ status }).eq('order_no', orderNo);
+    if (error) throw new Error(error.message);
+  },
+
+  async deleteOrder(orderNo) {
+    const { error } = await sb.from('orders').delete().eq('order_no', orderNo);
+    if (error) throw new Error(error.message);
+  },
+
+  async reviews() {
+    const { data, error } = await sb.from('reviews')
+      .select('*').order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []).map(r => ({ ...reviewRowToReview(r), approved: r.approved }));
+  },
+
+  async deleteReview(id) {
+    const { error } = await sb.from('reviews').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  }
+};
+
+const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));

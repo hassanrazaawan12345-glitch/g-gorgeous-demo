@@ -16,16 +16,17 @@ let productSearch = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
   await loadCatalogue();
-  if (sessionStorage.getItem(DB.ADMIN) === 'in') mountAdmin();
+  if (Auth.isSignedIn() && Auth.isAdmin()) mountAdmin();
+  else if (Auth.isSignedIn()) renderLogin('You are signed in, but this account is not marked as staff.');
   else renderLogin();
   window.addEventListener('hashchange', () => {
-    if (sessionStorage.getItem(DB.ADMIN) === 'in') route();
+    if (Auth.isSignedIn() && Auth.isAdmin()) route();
   });
 });
 
 /* ---------- login ---------- */
 
-function renderLogin() {
+function renderLogin(message) {
   $('#admin-root').innerHTML = `
     <div class="login-screen">
       <div class="login-card">
@@ -33,28 +34,38 @@ function renderLogin() {
         <h2 style="margin-bottom:2px">Admin Panel</h2>
         <p class="muted" style="font-size:.86rem">G.Gorgeous — Gents Wear</p>
         <div class="rule-ornament"><span>◆</span></div>
+        ${message ? `<div class="demo-note" style="text-align:left"><span></span><div>${esc(message)}</div></div>` : ''}
         <div class="field" style="text-align:left">
-          <label>Access PIN</label>
-          <input type="password" id="pin" placeholder="Enter your PIN" autofocus>
-          <p class="err-msg" id="pin-err">Incorrect PIN — try again</p>
+          <label>Email</label>
+          <input type="email" id="ad-email" placeholder="you@example.com" autocomplete="email" autofocus>
+        </div>
+        <div class="field" style="text-align:left">
+          <label>Password</label>
+          <input type="password" id="ad-pw" placeholder="Your password" autocomplete="current-password">
         </div>
         <button class="btn btn-gold btn-block" id="login-btn">Sign in</button>
-        <p class="hint mt-16">Demo PIN: <b>${esc(SITE.adminPin)}</b></p>
+        <p class="hint mt-16">Only staff accounts can open this panel.</p>
         <p class="hint"><a href="index.html" style="text-decoration:underline">← Back to store</a></p>
       </div>
     </div>`;
 
-  const go = () => {
-    if ($('#pin').value.trim() === SITE.adminPin) {
-      sessionStorage.setItem(DB.ADMIN, 'in');
+  const go = async () => {
+    const btn = $('#login-btn');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    try {
+      await Auth.signIn({ identifier: $('#ad-email').value, password: $('#ad-pw').value });
+      if (!Auth.isAdmin()) {
+        await Auth.signOut();
+        return renderLogin('That account signed in fine, but it is not marked as staff, so it cannot open the admin panel.');
+      }
       mountAdmin();
-    } else {
-      $('#pin').closest('.field').classList.add('invalid');
-      $('#pin').value = '';
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'Sign in';
+      toast(e.message, 'err');
     }
   };
   $('#login-btn').onclick = go;
-  $('#pin').onkeydown = e => { if (e.key === 'Enter') go(); };
+  $('#ad-pw').onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 
 /* ---------- shell ---------- */
@@ -79,7 +90,7 @@ function mountAdmin() {
     </div>`;
 
   $$('[data-go]').forEach(a => a.onclick = () => { location.hash = a.dataset.go; });
-  $('#logout').onclick = () => { sessionStorage.removeItem(DB.ADMIN); renderLogin(); };
+  $('#logout').onclick = async () => { await Auth.signOut(); renderLogin(); };
   route();
 }
 
@@ -105,9 +116,10 @@ const head = (title, sub, actions) => `
 
 /* ---------- dashboard ---------- */
 
-function viewDashboard() {
+async function viewDashboard() {
   const products = getProducts();
-  const orders = getOrders();
+  let orders = [];
+  try { orders = await AdminDB.orders(); } catch (e) {}
   const revenue = orders.reduce((n, o) => n + o.totals.total, 0);
   const lowStock = products.filter(p => totalStock(p) > 0 && totalStock(p) <= 5);
   const outStock = products.filter(p => totalStock(p) === 0);
@@ -222,7 +234,9 @@ function viewProducts() {
   $$('[data-del]').forEach(b => b.onclick = () => {
     const p = productById(b.dataset.del);
     confirmBox('Delete product?', `“${p.name}” will be removed from the store along with its reviews.`, () => {
-      deleteProduct(p.id); toast('Product deleted'); viewProducts();
+      AdminDB.deleteProduct(p.id)
+        .then(async () => { await loadCatalogue(); toast('Product deleted'); viewProducts(); })
+        .catch(e => toast(e.message, 'err'));
     });
   });
 }
@@ -427,7 +441,9 @@ function bindForm(isNew) {
   $('#save-bottom').onclick = save;
   const del = $('#delete-product');
   if (del) del.onclick = () => confirmBox('Delete product?', `“${draft.name}” will be removed from the store.`, () => {
-    deleteProduct(draft.id); toast('Product deleted'); location.hash = 'products';
+    AdminDB.deleteProduct(draft.id)
+      .then(async () => { await loadCatalogue(); toast('Product deleted'); location.hash = 'products'; route(); })
+      .catch(e => toast(e.message, 'err'));
   });
 }
 
@@ -449,10 +465,20 @@ function saveDraft() {
   draft.sizes = draft.sizes.map(s => ({ size: s.size, qty: Math.max(0, +s.qty || 0) }));
   if (!draft.createdAt) draft.createdAt = new Date().toISOString();
 
-  if (upsertProduct(draft)) {
-    toast('Product saved');
-    location.hash = 'products';
-  }
+  const btns = [$('#save-top'), $('#save-bottom')].filter(Boolean);
+  btns.forEach(b => { b.disabled = true; b.textContent = 'Saving\u2026'; });
+
+  AdminDB.saveProduct(draft)
+    .then(async () => {
+      await loadCatalogue();
+      toast('Product saved');
+      location.hash = 'products';
+      route();
+    })
+    .catch(e => {
+      btns.forEach(b => { b.disabled = false; b.textContent = 'Save product'; });
+      toast(e.message, 'err');
+    });
 }
 
 /* ---------- colours / sizes editors ---------- */
@@ -580,14 +606,18 @@ function bindUploads() {
 
 async function handleImages(files) {
   if (!files.length) return;
-  toast(`Processing ${files.length} image${files.length > 1 ? 's' : ''}…`);
+  toast(`Uploading ${files.length} image${files.length > 1 ? 's' : ''}\u2026`);
+  let done = 0;
   for (const f of files) {
     try {
-      draft.images.push(await compressImage(f, 1100, 0.72));
-    } catch (e) { toast('Could not read ' + f.name, 'err'); }
+      draft.images.push(await AdminDB.uploadImage(f));
+      done++;
+      renderImages(); renderPreview();
+    } catch (e) {
+      toast(`${f.name}: ${e.message}`, 'err');
+    }
   }
-  renderImages(); renderPreview();
-  toast('Images added');
+  if (done) toast(`${done} image${done > 1 ? 's' : ''} uploaded`);
 }
 
 function renderPreview() {
@@ -597,8 +627,10 @@ function renderPreview() {
 
 /* ---------- orders ---------- */
 
-function viewOrders() {
-  const orders = getOrders();
+async function viewOrders() {
+  let orders = [];
+  try { orders = await AdminDB.orders(); }
+  catch (e) { toast(e.message, 'err'); }
   $('#admin-main').innerHTML =
     head('Orders', `${orders.length} order${orders.length === 1 ? '' : 's'} placed`) + `
     <div class="panel">
@@ -627,17 +659,20 @@ function viewOrders() {
     </div>`;
 
   $$('[data-status]').forEach(sel => sel.onchange = () => {
-    updateOrderStatus(sel.dataset.status, sel.value);
-    toast('Order status updated');
+    AdminDB.setOrderStatus(sel.dataset.status, sel.value)
+      .then(() => toast('Order status updated'))
+      .catch(e => toast(e.message, 'err'));
   });
-  $$('[data-view]').forEach(b => b.onclick = () => orderModal(b.dataset.view));
+  $$('[data-view]').forEach(b => b.onclick = () => orderModal(b.dataset.view, orders));
   $$('[data-orm]').forEach(b => b.onclick = () => confirmBox('Delete order?', `Order #${b.dataset.orm} will be removed.`, () => {
-    deleteOrder(b.dataset.orm); toast('Order deleted'); viewOrders();
+    AdminDB.deleteOrder(b.dataset.orm)
+      .then(() => { toast('Order deleted'); viewOrders(); })
+      .catch(e => toast(e.message, 'err'));
   }));
 }
 
-function orderModal(id) {
-  const o = getOrders().find(x => x.id === id);
+function orderModal(id, orders) {
+  const o = (orders || []).find(x => x.id === id);
   if (!o) return;
   openModal(`<div class="modal-pad">
     <p class="eyebrow">Order #${esc(o.id)} · ${shortDate(o.date)}</p>
@@ -692,8 +727,10 @@ function orderModal(id) {
 
 /* ---------- reviews ---------- */
 
-function viewReviews() {
-  const reviews = getReviews().sort((a, b) => new Date(b.date) - new Date(a.date));
+async function viewReviews() {
+  let reviews = [];
+  try { reviews = await AdminDB.reviews(); }
+  catch (e) { toast(e.message, 'err'); }
   $('#admin-main').innerHTML =
     head('Reviews', `${reviews.length} customer review${reviews.length === 1 ? '' : 's'}`) + `
     <div class="panel">
@@ -717,7 +754,9 @@ function viewReviews() {
     </div>`;
 
   $$('[data-rrm]').forEach(b => b.onclick = () => confirmBox('Delete review?', 'This review will be removed from the product page.', () => {
-    deleteReview(b.dataset.rrm); toast('Review deleted'); viewReviews();
+    AdminDB.deleteReview(b.dataset.rrm)
+      .then(() => { toast('Review deleted'); viewReviews(); })
+      .catch(e => toast(e.message, 'err'));
   }));
 }
 
@@ -747,21 +786,24 @@ function viewSettings() {
       <div class="panel">
         <div class="panel-head"><h3>Data</h3></div>
         <div class="panel-body">
-          <p class="muted">Everything is stored in this browser only — nothing is sent to a server. Storage used: <b>${(used / 1024).toFixed(0)} KB</b>.</p>
+          <p class="muted">Products, orders, customers and reviews live in your Supabase database. Product photos are stored there too; the original catalogue photos are served from Cloudflare.</p>
+          <p class="hint">Cart and favourites stay in each visitor’s own browser, which is why they do not follow a customer between devices.</p>
           <div class="flex gap-8 wrap-flex mt-16">
             <button class="btn btn-sm btn-ghost" id="export">Export data (JSON)</button>
-            <button class="btn btn-sm btn-ghost" id="import">Import data</button>
-            <button class="btn btn-sm btn-danger" id="reset">Reset demo data</button>
+
+
           </div>
-          <input type="file" id="import-file" accept="application/json" hidden>
-          <p class="hint mt-16">Reset restores the original 18 demo products and clears all orders, reviews, cart and favourites.</p>
+
+          <p class="hint mt-16">Export downloads a JSON copy of the live catalogue, orders and reviews — a quick manual backup between Supabase backups.</p>
         </div>
       </div>
     </div>`;
 
-  $('#export').onclick = () => {
+  $('#export').onclick = async () => {
     const data = {
-      products: getProducts(), reviews: getReviews(), orders: getOrders(),
+      products: getProducts(),
+      reviews: await AdminDB.reviews().catch(() => []),
+      orders: await AdminDB.orders().catch(() => []),
       exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -773,25 +815,6 @@ function viewSettings() {
     toast('Data exported');
   };
 
-  $('#import').onclick = () => $('#import-file').click();
-  $('#import-file').onchange = e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const d = JSON.parse(reader.result);
-        if (d.products) saveProducts(d.products);
-        if (d.reviews) write(DB.REVIEWS, d.reviews);
-        if (d.orders) write(DB.ORDERS, d.orders);
-        toast('Data imported');
-        viewSettings();
-      } catch (err) { toast('That file could not be read', 'err'); }
-    };
-    reader.readAsText(f);
-  };
 
-  $('#reset').onclick = () => confirmBox('Reset demo data?',
-    'All products, orders, reviews, cart and favourites go back to the original demo state.',
-    () => { resetDemoData(); toast('Demo data reset'); route(); }, 'Reset everything');
+
 }
