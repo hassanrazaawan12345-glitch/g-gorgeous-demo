@@ -343,15 +343,14 @@ function viewProductForm(id) {
 
         <div class="form-card">
           <h3>Video</h3>
-          <p class="sub">A short clip of the piece — shows as the last item in the gallery.</p>
-          <div class="dropzone" id="vid-drop">
-            ${ICON.play}<b>Click or drop a video</b><span>MP4 · keep it under 4 MB for the demo</span>
-            <input type="file" id="vid-input" accept="video/*" hidden>
+          <p class="sub">Paste a link to a video you have already posted — it plays right on the product page.</p>
+          <div class="field">
+            <label>TikTok, YouTube or Instagram link</label>
+            <input type="url" id="vid-url" value="${esc(draft.video || '')}"
+                   placeholder="https://www.tiktok.com/@g.gorgeous_1.0/video/…">
+            <p class="hint" id="vid-hint">Open the video on TikTok, tap Share → Copy link, then paste the full link here.</p>
           </div>
-          <div class="media-grid" id="vid-grid"></div>
-          <div class="field mt-16"><label>…or paste a video URL</label>
-            <div class="flex gap-8"><input type="url" id="vid-url" value="${esc(draft.video && draft.video.startsWith('http') ? draft.video : '')}" placeholder="https://…mp4">
-              <button class="btn btn-sm btn-ghost" id="add-vid-url">Add</button></div></div>
+          <div id="vid-preview"></div>
         </div>
 
         <div class="form-card">
@@ -496,13 +495,38 @@ function renderImages() {
 }
 
 function renderVideo() {
-  $('#vid-grid').innerHTML = draft.video
-    ? `<div class="media-item" style="grid-column:span 2">
-         <video src="${draft.video}" muted></video>
-         <button class="rm" id="vid-rm" title="Remove">×</button></div>`
-    : '';
+  const box = $('#vid-preview');
+  const hint = $('#vid-hint');
+  if (!box) return;
+
+  const raw = ($('#vid-url') ? $('#vid-url').value : draft.video || '').trim();
+
+  if (!raw) {
+    draft.video = '';
+    box.innerHTML = '';
+    hint.textContent = 'Open the video on TikTok, tap Share → Copy link, then paste the full link here.';
+    hint.style.color = '';
+    return;
+  }
+
+  const v = parseVideo(raw);
+
+  if (v.kind === 'error') {
+    draft.video = '';
+    box.innerHTML = '';
+    hint.textContent = v.error;
+    hint.style.color = 'var(--danger)';
+    return;
+  }
+
+  draft.video = raw;
+  hint.textContent = `${v.label} video recognised — this is how customers will see it.`;
+  hint.style.color = 'var(--ok)';
+  box.innerHTML = `<div class="video-preview" style="aspect-ratio:${v.ratio}">${videoEmbedHTML(raw)}</div>
+    <button class="btn btn-sm btn-danger mt-16" id="vid-rm">${ICON.trash} Remove video</button>`;
+
   const rm = $('#vid-rm');
-  if (rm) rm.onclick = () => { draft.video = ''; $('#vid-url').value = ''; renderVideo(); };
+  if (rm) rm.onclick = () => { $('#vid-url').value = ''; renderVideo(); renderPreview(); };
 }
 
 function compressImage(file, maxSide, quality) {
@@ -545,21 +569,12 @@ function bindUploads() {
     renderImages(); renderPreview(); toast('Image added');
   };
 
-  const vidDrop = $('#vid-drop'), vidInput = $('#vid-input');
-  vidDrop.onclick = () => vidInput.click();
-  vidDrop.ondragover = e => { e.preventDefault(); vidDrop.classList.add('drag'); };
-  vidDrop.ondragleave = () => vidDrop.classList.remove('drag');
-  vidDrop.ondrop = e => {
-    e.preventDefault(); vidDrop.classList.remove('drag');
-    handleVideo((e.dataTransfer.files || [])[0]);
-  };
-  vidInput.onchange = () => { handleVideo(vidInput.files[0]); vidInput.value = ''; };
-
-  $('#add-vid-url').onclick = () => {
-    const url = $('#vid-url').value.trim();
-    if (!url) return;
-    draft.video = url; renderVideo(); toast('Video added');
-  };
+  // video is a link, never an upload — see the note in store.js
+  let vt;
+  $('#vid-url').addEventListener('input', () => {
+    clearTimeout(vt);
+    vt = setTimeout(renderVideo, 350);
+  });
 }
 
 async function handleImages(files) {
@@ -572,17 +587,6 @@ async function handleImages(files) {
   }
   renderImages(); renderPreview();
   toast('Images added');
-}
-
-function handleVideo(file) {
-  if (!file) return;
-  if (file.size > 6 * 1024 * 1024) {
-    return toast('Video is too large for browser storage — paste a URL instead', 'err');
-  }
-  const reader = new FileReader();
-  reader.onload = () => { draft.video = reader.result; renderVideo(); toast('Video added'); };
-  reader.onerror = () => toast('Could not read that video', 'err');
-  reader.readAsDataURL(file);
 }
 
 function renderPreview() {

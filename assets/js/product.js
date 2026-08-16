@@ -129,16 +129,24 @@ function renderGallery() {
   const m = media[sel.index] || media[0];
   const main = $('#gal-main');
   main.innerHTML = m.type === 'video'
-    ? `<video src="${m.src}" controls playsinline preload="metadata"></video>`
+    ? videoEmbedHTML(m.src)
     : `<img src="${m.src}" alt="${esc(P.name)}" id="main-img">
        ${media.length > 1 ? `<button class="gallery-nav prev" id="g-prev">${ICON.chevL}</button>
          <button class="gallery-nav next" id="g-next">${ICON.chevR}</button>` : ''}`;
 
   const th = $('#thumbs');
   if (th) {
-    th.innerHTML = media.map((x, i) => x.type === 'video'
-      ? `<div class="thumb video-thumb ${i === sel.index ? 'on' : ''}" data-i="${i}" title="Video">${ICON.play}</div>`
-      : `<div class="thumb ${i === sel.index ? 'on' : ''}" data-i="${i}"><img src="${x.src}" alt=""></div>`).join('');
+    th.innerHTML = media.map((x, i) => {
+      if (x.type !== 'video') {
+        return `<div class="thumb ${i === sel.index ? 'on' : ''}" data-i="${i}"><img src="${x.src}" alt=""></div>`;
+      }
+      const v = parseVideo(x.src) || {};
+      // YouTube gives a predictable thumbnail; the others get a play tile
+      return v.thumb
+        ? `<div class="thumb video-thumb has-poster ${i === sel.index ? 'on' : ''}" data-i="${i}" title="${esc(v.label)} video">
+             <img src="${esc(v.thumb)}" alt=""><span class="play-dot">${ICON.play}</span></div>`
+        : `<div class="thumb video-thumb ${i === sel.index ? 'on' : ''}" data-i="${i}" title="${esc(v.label || 'Video')}">${ICON.play}</div>`;
+    }).join('');
     $$('[data-i]', th).forEach(t => t.onclick = () => { sel.index = +t.dataset.i; renderGallery(); });
   }
   const prev = $('#g-prev'), next = $('#g-next');

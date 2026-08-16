@@ -250,6 +250,68 @@ function updateOrderStatus(id, status) {
 }
 function deleteOrder(id) { write(DB.ORDERS, getOrders().filter(o => o.id !== id)); }
 
+/* ==========================================================================
+   Product video — links, not uploads.
+
+   A 30-second clip is 5–20 MB. Hosting a few dozen would fill the free
+   storage tier on its own and eat the monthly bandwidth allowance, so the
+   shop pastes a link to a video it has already posted. Costs nothing,
+   streams better on phones, and the platform handles playback quality.
+   ========================================================================== */
+
+/* How long uploaded images should be cached by browsers and CDNs.
+   One year, because filenames change when an image changes. Used by the
+   Cloudflare _headers file and by Supabase Storage uploads. */
+const MEDIA_CACHE_SECONDS = 31536000;
+
+function parseVideo(url) {
+  const u = String(url || '').trim();
+  if (!u) return null;
+  let m;
+
+  m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (m) return {
+    kind: 'youtube', label: 'YouTube', id: m[1], ratio: '16 / 9',
+    embed: `https://www.youtube-nocookie.com/embed/${m[1]}?rel=0&modestbranding=1`,
+    thumb: `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg`
+  };
+
+  m = u.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/);
+  if (m) return {
+    kind: 'tiktok', label: 'TikTok', id: m[1], ratio: '9 / 16',
+    embed: `https://www.tiktok.com/embed/v2/${m[1]}`, thumb: null
+  };
+
+  // Short share links redirect server-side, so the id cannot be read here
+  if (/(?:vm|vt)\.tiktok\.com\//i.test(u)) return {
+    kind: 'error',
+    error: 'Open that short TikTok link in a browser, then copy the full link from the address bar — it looks like tiktok.com/@g.gorgeous_1.0/video/123456…'
+  };
+
+  m = u.match(/instagram\.com\/(?:reel|reels|p)\/([A-Za-z0-9_-]+)/);
+  if (m) return {
+    kind: 'instagram', label: 'Instagram', id: m[1], ratio: '9 / 16',
+    embed: `https://www.instagram.com/reel/${m[1]}/embed`, thumb: null
+  };
+
+  if (/^https?:\/\/\S+\.(mp4|webm|mov|m4v)(\?\S*)?$/i.test(u) || u.startsWith('data:video')) {
+    return { kind: 'file', label: 'Video file', src: u, ratio: '4 / 5' };
+  }
+
+  return { kind: 'error', error: 'That does not look like a YouTube, TikTok or Instagram video link.' };
+}
+
+function videoEmbedHTML(url) {
+  const v = parseVideo(url);
+  if (!v || v.kind === 'error') return '';
+  if (v.kind === 'file') {
+    return `<video src="${esc(v.src)}" controls playsinline preload="metadata"></video>`;
+  }
+  return `<iframe class="video-embed" src="${esc(v.embed)}" title="Product video" loading="lazy"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+}
+
 /* ---------- formatting ---------- */
 
 function money(n) {
