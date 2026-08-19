@@ -322,6 +322,15 @@ function renderReviews() {
                <h3>No reviews yet</h3><p>Be the first to review ${esc(P.name)}.</p></div>`}
         </div>
 
+        ${!Auth.isSignedIn() ? `
+        <div class="review-form center">
+          <h3>Write a review</h3>
+          <p class="muted" style="font-size:.9rem">
+            Reviews are tied to a customer account, which keeps them genuine.</p>
+          <a class="btn btn-gold mt-16" href="account.html?next=${encodeURIComponent(location.pathname + location.search)}">
+            Sign in to review</a>
+          <p class="hint mt-16">No account? Creating one takes a minute.</p>
+        </div>` : `
         <div class="review-form">
           <h3>Write a review</h3>
           <p class="muted" style="margin-top:-6px">Tell other customers about the fit, fabric and finish.</p>
@@ -333,15 +342,17 @@ function renderReviews() {
             <p class="err-msg" id="rating-err">Please pick a rating</p>
           </div>
           <div class="grid-2">
-            <div class="field"><label>Your name</label><input type="text" id="rv-name" placeholder="e.g. Ahmed K."></div>
+            <div class="field"><label>Your name</label><input type="text" id="rv-name" value="${esc((Auth.currentUser() || {}).name || '')}" placeholder="e.g. Ahmed K."></div>
             <div class="field"><label>Review title</label><input type="text" id="rv-title" placeholder="e.g. Excellent fit"></div>
           </div>
           <div class="field"><label>Your review</label>
             <textarea id="rv-body" placeholder="How was the quality, size and delivery?"></textarea></div>
           <button class="btn btn-gold" id="rv-submit">Submit review</button>
-        </div>
+        </div>`}
       </div>
     </div>`;
+
+  if (!Auth.isSignedIn()) return;      // the form is not on the page
 
   let rating = 0;
   const btns = $$('#star-input button');
@@ -355,21 +366,29 @@ function renderReviews() {
   });
   $('#star-input').onmouseleave = () => paint(rating);
 
-  $('#rv-submit').onclick = () => {
+  $('#rv-submit').onclick = async () => {
+    const btn = $('#rv-submit');
     const name = $('#rv-name').value.trim();
     const body = $('#rv-body').value.trim();
     if (!rating) { $('#rating-err').style.display = 'block'; return toast('Please choose a star rating', 'err'); }
     if (!name) return toast('Please add your name', 'err');
     if (body.length < 6) return toast('Please write a little more', 'err');
-    addReview({
-      productId: P.id, name, rating,
-      title: $('#rv-title').value.trim(),
-      body, date: new Date().toISOString().slice(0, 10)
-    });
-    toast('Thank you — your review is live');
-    renderReviews();
-    renderTabsCount();
-    switchTab('reviews');
+
+    btn.disabled = true; btn.textContent = 'Posting…';
+    try {
+      await addReview({
+        productId: P.id, name, rating,
+        title: $('#rv-title').value.trim(),
+        body, date: new Date().toISOString().slice(0, 10)
+      });
+      toast('Thank you — your review is live');
+      renderReviews();
+      renderTabsCount();
+      switchTab('reviews');
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'Submit review';
+      toast(e.message, 'err');
+    }
   };
 }
 

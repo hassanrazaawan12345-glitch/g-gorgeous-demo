@@ -113,6 +113,13 @@ async function loadCatalogue() {
   return DBCache;
 }
 
+async function refreshReviews() {
+  if (!sb) return;
+  const { data, error } = await sb.from('reviews')
+    .select('id,product_id,name,rating,title,body,created_at').eq('approved', true);
+  if (!error && data) DBCache.reviews = data.map(reviewRowToReview);
+}
+
 /* ---------- what the rest of the site calls ---------- */
 
 function catalogue()        { return DBCache.products || []; }

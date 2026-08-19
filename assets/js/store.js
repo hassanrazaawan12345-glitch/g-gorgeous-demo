@@ -127,8 +127,26 @@ const getReviews = () =>
 const reviewsFor  = (id) => getReviews().filter(r => r.productId === id)
   .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-function addReview(review) {
-  const list = getReviews();
+/* Reviews go to the database so the shop and every other customer see
+   them. The security policy only accepts a review whose user_id matches
+   the signed-in account, which is also what stops anonymous review spam. */
+async function addReview(review) {
+  if (sb) {
+    const user = Auth.currentUser();
+    if (!user) throw new Error('Please sign in to write a review');
+    const { error } = await sb.from('reviews').insert({
+      product_id: review.productId,
+      user_id: user.id,
+      name: review.name,
+      rating: review.rating,
+      title: review.title || null,
+      body: review.body
+    });
+    if (error) throw new Error(error.message);
+    await refreshReviews();
+    return true;
+  }
+  const list = localReviews();
   list.push({ ...review, id: 'r-' + Date.now().toString(36) });
   return write(DB.REVIEWS, list);
 }
