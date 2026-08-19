@@ -3,16 +3,64 @@
 Supabase sends these with generic wording by default, so customers see something
 that reads like a developer tool rather than a clothing shop.
 
-There are two separate things, and they are independent:
+## ⚠ Read this first: templates are locked until SMTP is set up
 
-| | Fixes | Needs |
-|---|---|---|
-| **1. Templates** | The subject and the words | Nothing — 5 minutes, free |
-| **2. SMTP** | Who it appears to come from | An email provider + a domain |
+The Authentication → Emails screen shows:
+
+> **Set up custom SMTP to edit templates.** Emails will be sent using the
+> default templates.
+
+So the two jobs are **not** independent, despite what an earlier version of this
+file said. The order is:
+
+1. **Set up custom SMTP** (Part 1 below) — this also fixes the sender address
+2. **Then** the Subject and Body fields unlock and you can paste the branded
+   templates (Part 2)
+
+Nothing is broken in the meantime. Confirmation and reset emails still send and
+still work — they just look generic and come from a Supabase address.
 
 ---
 
-## Part 1 — Templates (do now)
+## Part 1 — Custom SMTP (do this first)
+
+Set this under **Authentication → Emails → Set up SMTP** (the button on the
+notice), or **Project Settings → Authentication → SMTP Settings**.
+
+This does two things at once: it makes emails come from your address, and it
+unlocks template editing.
+
+There is a second, more urgent reason: Supabase's built-in mailer is
+**rate limited to a handful of emails per hour** and is explicitly not for
+production. If several people sign up at once, confirmation emails simply stop
+arriving and nobody is told.
+
+Free providers, all fine at this scale:
+
+| Provider | Free tier |
+|---|---|
+| **Resend** | 3,000/month — simplest setup |
+| **Brevo** | 300/day |
+| **SendGrid** | 100/day |
+
+Steps are the same whichever you choose:
+
+1. Create the account and **verify your domain** — this is what decides whether
+   mail lands in the inbox or in spam, so it needs the domain bought first
+2. Copy the SMTP host, port, username and password
+3. Paste them into Supabase → **SMTP Settings**
+4. Set **Sender email** to something like `orders@ggorgeous.pk`
+   and **Sender name** to `G.Gorgeous`
+
+After that, customers see **G.Gorgeous** in their inbox.
+
+> Until a domain is verified, deliverability will be poor no matter what the
+> sender name says — unverified senders get filtered. This is the strongest
+> practical reason to buy the domain sooner rather than later.
+
+---
+
+## Part 2 — The templates (once SMTP is on)
 
 Open your project's template screen:
 
@@ -136,36 +184,3 @@ Confirm your new email address
 ```
 
 ---
-
-## Part 2 — Sender address (before real customers)
-
-Templates change the words, not the sender. That needs your own SMTP under
-**Project Settings → Authentication → SMTP Settings**.
-
-There is a second, more urgent reason: Supabase's built-in mailer is
-**rate limited to a handful of emails per hour** and is explicitly not for
-production. If several people sign up at once, confirmation emails simply stop
-arriving and nobody is told.
-
-Free providers, all fine at this scale:
-
-| Provider | Free tier |
-|---|---|
-| **Resend** | 3,000/month — simplest setup |
-| **Brevo** | 300/day |
-| **SendGrid** | 100/day |
-
-Steps are the same whichever you choose:
-
-1. Create the account and **verify your domain** — this is what decides whether
-   mail lands in the inbox or in spam, so it needs the domain bought first
-2. Copy the SMTP host, port, username and password
-3. Paste them into Supabase → **SMTP Settings**
-4. Set **Sender email** to something like `orders@ggorgeous.pk`
-   and **Sender name** to `G.Gorgeous`
-
-After that, customers see **G.Gorgeous** in their inbox.
-
-> Until a domain is verified, deliverability will be poor no matter what the
-> sender name says — unverified senders get filtered. This is the strongest
-> practical reason to buy the domain sooner rather than later.
