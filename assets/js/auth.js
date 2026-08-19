@@ -118,6 +118,7 @@ const Auth = {
     AuthState.ready = true;
 
     sb.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') Auth.markRecovery();
       AuthState.session = session || null;
       await loadProfile();
       document.dispatchEvent(new CustomEvent('gg:auth', { detail: { event } }));
@@ -132,8 +133,7 @@ const Auth = {
      follows a reset link. detectSessionInUrl consumes it, so we look for
      the marker to know the page should show "set a new password". */
   isRecovery() {
-    return /(^|[#&])type=recovery/.test(location.hash) ||
-           sessionStorage.getItem('gg.recovery') === '1';
+    try { return sessionStorage.getItem('gg.recovery') === '1'; } catch (e) { return false; }
   },
   markRecovery() { sessionStorage.setItem('gg.recovery', '1'); },
   clearRecovery() { sessionStorage.removeItem('gg.recovery'); },

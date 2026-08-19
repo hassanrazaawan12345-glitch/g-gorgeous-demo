@@ -44,6 +44,9 @@ function renderLogin(message) {
           <input type="password" id="ad-pw" placeholder="Your password" autocomplete="current-password">
         </div>
         <button class="btn btn-gold btn-block" id="login-btn">Sign in</button>
+        <p class="auth-alt" style="margin-top:14px">
+          <button id="ad-forgot">Forgot your password?</button>
+        </p>
         <p class="hint mt-16">Only staff accounts can open this panel.</p>
         <p class="hint"><a href="index.html" style="text-decoration:underline">← Back to store</a></p>
       </div>
@@ -66,6 +69,52 @@ function renderLogin(message) {
   };
   $('#login-btn').onclick = go;
   $('#ad-pw').onkeydown = e => { if (e.key === 'Enter') go(); };
+  $('#ad-forgot').onclick = () => renderAdminReset($('#ad-email').value.trim());
+}
+
+/* Staff use the same accounts as customers, so this is the same reset email.
+   It lands on account.html, which is where the new-password screen lives. */
+function renderAdminReset(prefill) {
+  $('#admin-root').innerHTML = `
+    <div class="login-screen">
+      <div class="login-card">
+        <img src="${LOGO}" alt="G.Gorgeous">
+        <h2 style="margin-bottom:2px">Reset your password</h2>
+        <p class="muted" style="font-size:.86rem">We will email you a link</p>
+        <div class="rule-ornament"><span>◆</span></div>
+        <div class="field" style="text-align:left">
+          <label>Email</label>
+          <input type="email" id="rs-email" value="${esc(prefill || '')}" placeholder="you@example.com" autofocus>
+        </div>
+        <button class="btn btn-gold btn-block" id="rs-go">Send reset link</button>
+        <p class="hint mt-16"><a id="rs-back" style="text-decoration:underline;cursor:pointer">← Back to sign in</a></p>
+      </div>
+    </div>`;
+
+  $('#rs-back').onclick = () => renderLogin();
+  const send = async () => {
+    const btn = $('#rs-go');
+    const em = $('#rs-email').value.trim();
+    if (!isEmail(em)) return toast('Please enter a valid email address', 'err');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      await Auth.requestReset(em);
+      $('#admin-root').querySelector('.login-card').innerHTML = `
+        <img src="${LOGO}" alt="G.Gorgeous">
+        <h2 style="margin-bottom:2px">Check your inbox</h2>
+        <div class="rule-ornament"><span>◆</span></div>
+        <p class="muted" style="font-size:.9rem">
+          If an account exists for <b>${esc(em)}</b>, a reset link is on its way.
+          Follow it to choose a new password, then come back here to sign in.</p>
+        <p class="hint mt-16">It can take a minute — check spam if it has not arrived.</p>
+        <a class="btn btn-ghost btn-block mt-16" href="admin.html">Back to sign in</a>`;
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'Send reset link';
+      toast(e.message, 'err');
+    }
+  };
+  $('#rs-go').onclick = send;
+  $('#rs-email').onkeydown = e => { if (e.key === 'Enter') send(); };
 }
 
 /* ---------- shell ---------- */

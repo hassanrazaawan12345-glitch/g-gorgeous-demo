@@ -19,6 +19,14 @@ const SUPABASE_KEY = 'sb_publishable_tVTC6H3VpdWn9s6-8h3AbQ_5BoIQWsP';
    unreachable so the shop still shows its products. */
 const USE_SUPABASE = true;
 
+/* Supabase strips the URL fragment the moment the client is created, so the
+   "type=recovery" marker from a password-reset link has to be read BEFORE
+   that happens. Without this the link silently signs the person in and
+   drops them on their normal account page. */
+if (/(^|[#&])type=recovery/.test(location.hash)) {
+  try { sessionStorage.setItem('gg.recovery', '1'); } catch (e) {}
+}
+
 const sb = (typeof supabase !== 'undefined' && USE_SUPABASE)
   ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {

@@ -265,8 +265,11 @@ function renderRecovery() {
           <button class="pw-toggle" data-pw="np2" type="button">${pwEye}</button>
         </div>
         <button class="btn btn-gold btn-block" id="np-go">Update password</button>
+        <p class="auth-alt"><button id="np-cancel">Skip and go to my account</button></p>
       </div>
     </div>`;
+
+  $('#np-cancel').onclick = () => { Auth.clearRecovery(); render(); };
 
   bindPwToggles();
   const np = $('#np');
